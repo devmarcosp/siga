@@ -10,9 +10,14 @@ html {
 }
 
 body {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Montserrat', sans-serif;
     background: #f1f5f9;
     color: #1e293b;
+}
+
+/* Tipografía única en toda la experiencia, incluido contenido dinámico. */
+body *, body *::before, body *::after {
+    font-family: 'Montserrat', sans-serif !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -861,4 +866,202 @@ body.auth-transitioning { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
     #landingPage, .auth-screen { transition-duration: 0s; }.auth-orbit { animation: none; }
 }
+
+/* ============================================
+   APP SIGA — CAMPUS DIGITAL EDITORIAL
+   Capa visual del dashboard; conserva su lógica.
+   ============================================ */
+#app {
+    --app-ink: #0b1930;
+    --app-ink-soft: #152b47;
+    --app-paper: #f3f0e6;
+    --app-surface: #fffdf8;
+    --app-coral: #ff6b4a;
+    --app-lime: #c7f36b;
+    --app-cyan: #68d7e8;
+    --app-muted: #718078;
+    --app-line: rgba(11, 25, 48, .12);
+    color: var(--app-ink);
+    background: var(--app-paper);
+    font-family: 'DM Sans', sans-serif;
+}
+#app > aside:first-child {
+    width: 272px;
+    position: relative;
+    overflow: hidden;
+    border-right: 0;
+    background: radial-gradient(circle at 10% 88%, rgba(104,215,232,.12), transparent 22%), linear-gradient(165deg, #071426, #102944) !important;
+}
+#app > aside:first-child::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: .055;
+    pointer-events: none;
+    background-image: linear-gradient(rgba(255,255,255,.8) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.8) 1px, transparent 1px);
+    background-size: 52px 52px;
+}
+#app > aside:first-child > div:first-child { height: 86px; padding: 20px 23px; position: relative; border-bottom: 1px solid rgba(255,255,255,.08); }
+#app > aside:first-child > div:first-child img { width: 43px; height: 43px; padding: 3px; border-radius: 13px; background: #fff; box-shadow: 0 8px 24px rgba(0,0,0,.2); transform: rotate(-3deg); }
+#app > aside:first-child > div:first-child b { font-family: 'DM Sans', sans-serif; font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
+#app #navMenu { padding: 24px 15px; position: relative; }
+#app #navMenu::before { content: 'ESPACIO DE TRABAJO'; display: block; margin: 0 11px 13px; color: rgba(255,255,255,.3); font-size: 8px; font-weight: 800; letter-spacing: .18em; }
+#app [data-nav] { min-height: 47px; margin-bottom: 5px; padding: 10px 13px; position: relative; border: 1px solid transparent; border-radius: 4px 4px 15px 4px; color: rgba(255,255,255,.52); font-size: 12px; transition: color .22s, background .22s, transform .22s, border-color .22s; }
+#app [data-nav] > span:first-child { width: 27px; filter: grayscale(1); opacity: .68; font-size: 15px; text-align: center; transition: filter .22s, opacity .22s; }
+#app [data-nav]:hover:not(.nav-active) { color: #fff; border-color: rgba(255,255,255,.08); background: rgba(255,255,255,.055); transform: translateX(3px); }
+#app [data-nav].nav-active { color: var(--app-ink) !important; border: 0; border-left: 0; background: var(--app-lime) !important; box-shadow: 0 9px 22px rgba(0,0,0,.18); font-weight: 800; transform: translateX(3px); }
+#app [data-nav].nav-active::after { content: '→'; margin-left: auto; font-size: 14px; }
+#app [data-nav].nav-active > span:first-child { filter: none; opacity: 1; }
+#app > aside:first-child > div:last-child { margin: 0 14px 15px; padding: 14px 10px; position: relative; border: 1px solid rgba(255,255,255,.09); border-radius: 4px 4px 16px 4px; background: rgba(255,255,255,.045); }
+#app #userAvatar { color: var(--app-ink) !important; background: var(--app-cyan) !important; box-shadow: none !important; font-family: 'DM Sans', sans-serif; font-weight: 800; }
+#app #userName { max-width: 128px; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+#app #userRole { color: rgba(255,255,255,.38); font-size: 9px; }
+#app > aside:first-child > div:last-child > button { width: 28px; height: 28px; border-radius: 50%; color: rgba(255,255,255,.42); transition: .2s; }
+#app > aside:first-child > div:last-child > button:hover { color: #fff; background: rgba(255,107,74,.18); transform: rotate(8deg); }
+
+#app > main { position: relative; background: var(--app-paper) !important; }
+#app > main::before { content: ''; position: absolute; inset: 0; opacity: .16; pointer-events: none; background-image: radial-gradient(var(--app-ink) .55px, transparent .55px); background-size: 18px 18px; mask-image: linear-gradient(125deg, transparent 5%, #000 120%); }
+#app > main > header { min-height: 78px; height: 78px; padding-inline: clamp(18px, 3vw, 42px); position: relative; z-index: 2; border-bottom: 1px solid var(--app-line); background: rgba(255,253,248,.82) !important; backdrop-filter: blur(18px); }
+#app #pageTitle { font-family: 'DM Sans', sans-serif; font-size: 18px; font-weight: 800; letter-spacing: -.025em; }
+#app #pageSubtitle { margin-top: 2px; color: var(--app-muted); font-size: 9px; letter-spacing: .03em; }
+#app #currentDate { padding: 8px 13px; border: 1px solid var(--app-line); border-radius: 999px; color: #68756e; background: rgba(255,255,255,.48); font-size: 9px; font-weight: 700; text-transform: capitalize; }
+#app #content { position: relative; z-index: 1; padding: clamp(20px, 3vw, 38px); scroll-behavior: smooth; }
+
+/* Hero: la misma voz editorial del landing */
+#app .dash-hero { min-height: 190px; padding: 35px 38px; border: 0; border-radius: 4px 4px 34px 4px; box-shadow: 0 20px 48px rgba(11,25,48,.18); isolation: isolate; }
+#app .dash-hero--admin, #app .dash-hero--docente, #app .dash-hero--apoderado { background: radial-gradient(circle at 76% 40%, rgba(104,215,232,.17), transparent 23%), linear-gradient(135deg, #0a172a, #163755 100%); }
+#app .dash-hero::before { width: 310px; height: 310px; top: -195px; right: -20px; z-index: -1; border: 1px solid rgba(255,255,255,.13); background: transparent; box-shadow: 0 0 0 38px rgba(255,255,255,.025), 0 0 0 76px rgba(255,255,255,.018); }
+#app .dash-hero::after { width: 10px; height: 10px; right: 110px; bottom: 31px; background: var(--app-lime); box-shadow: 0 0 18px var(--app-lime); }
+#app .dash-hero .hero-chip { padding: 6px 10px; border: 0; border-radius: 2px; color: var(--app-cyan); background: rgba(104,215,232,.09); font-size: 8px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; backdrop-filter: none; }
+#app .dash-hero h2 { max-width: 720px; margin-top: 17px; font-family: 'DM Sans', sans-serif; font-size: clamp(25px, 3vw, 36px); font-weight: 800; letter-spacing: -.04em; }
+#app .dash-hero > p { max-width: 680px; margin-top: 7px; color: rgba(255,255,255,.58); font-size: 11px; line-height: 1.65; }
+
+/* Métricas */
+#app .stat-card { min-height: 134px; padding: 21px !important; align-items: flex-end; border: 1px solid var(--app-line); border-radius: 4px 4px 23px 4px !important; background: var(--app-surface) !important; box-shadow: 0 3px 0 rgba(11,25,48,.035); }
+#app .stat-card:hover { border-color: rgba(11,25,48,.22); box-shadow: 0 18px 35px rgba(11,25,48,.09); transform: translateY(-5px) rotate(-.25deg); }
+#app .stat-card > div:first-child { width: 42px; height: 42px; align-self: flex-start; border-radius: 50% !important; color: var(--app-ink) !important; box-shadow: none !important; font-size: 17px; }
+#app .stat-card .bg-blue-500 { background: #d9f3f6 !important; }
+#app .stat-card .bg-purple-500 { background: #e5f5bd !important; }
+#app .stat-card .bg-emerald-500 { background: #dceee2 !important; }
+#app .stat-card .bg-orange-500 { background: #ffe0d8 !important; }
+#app .stat-card > div:nth-child(2) { flex: 1; }
+#app .stat-card > div:nth-child(2) > div:first-child { color: #78847d; font-size: 8px; letter-spacing: .14em; }
+#app .stat-card > div:nth-child(2) > div:nth-child(2), #app .stat-card #attHoyValor, #app .stat-card #promCursoValor { color: var(--app-ink); font-family: 'DM Sans', sans-serif; font-size: 26px; font-weight: 800; letter-spacing: -.035em; }
+#app .stat-card > div:nth-child(2) > div:last-child { color: #8d968f; font-size: 9px; }
+#app .stat-card .stat-glow { width: 80px; height: 80px; top: auto; right: -27px; bottom: -34px; border: 1px solid currentColor; background: transparent !important; opacity: .1; box-shadow: 0 0 0 15px currentColor; }
+#app .stat-card select { padding: 8px 10px; border-color: var(--app-line); border-radius: 3px 3px 10px 3px; color: #5d6a62; background-color: #faf8f1; }
+
+/* Widgets, horarios y accesos rápidos */
+#app .widget-card { overflow: hidden; border: 1px solid var(--app-line); border-radius: 4px 4px 25px 4px; background: var(--app-surface); box-shadow: 0 4px 0 rgba(11,25,48,.035); }
+#app .widget-head { min-height: 62px; padding: 14px 18px; border-bottom: 1px solid var(--app-line); background: rgba(243,240,230,.46); }
+#app .widget-head .w-icon { width: 34px; height: 34px; border: 1px solid var(--app-line); border-radius: 50%; background: transparent !important; font-size: 14px; }
+#app .widget-head h3 { color: var(--app-ink); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 800; letter-spacing: -.015em; }
+#app .widget-head button { color: #58705e !important; font-size: 9px; letter-spacing: .04em; }
+#app .widget-head button:hover { color: var(--app-coral) !important; }
+#app .widget-body { padding: 17px 18px; }
+#app .widget-body > .space-y-2 > div, #app .widget-body > div[class*="space-y"] > div { border-color: var(--app-line) !important; border-radius: 3px 3px 12px 3px !important; background: #faf8f2 !important; transition: transform .2s, border-color .2s, background .2s; }
+#app .widget-body > .space-y-2 > div:hover { border-color: rgba(81,110,88,.3) !important; background: #fff !important; transform: translateX(3px); }
+#app .quick-action { min-height: 61px; padding: 9px 11px; border: 1px solid var(--app-line); border-radius: 3px 3px 15px 3px; background: #faf8f2; }
+#app .quick-action:hover { border-color: #b6cf82; background: #f1f7df; box-shadow: none; transform: translateX(4px); }
+#app .quick-action .qa-icon { width: 38px; height: 38px; border-radius: 50%; background: #fff !important; font-size: 16px; }
+#app .quick-action .block.font-bold { color: var(--app-ink); font-size: 11px; }
+#app .quick-action .block.text-xs { color: #89928c; font-size: 9px; }
+#app .quick-action .qa-arrow { color: #8c998f; }.quick-action:hover .qa-arrow { color: var(--app-coral); }
+#app .hor-list::before { background: rgba(11,25,48,.13); }
+#app .hor-card { border-color: var(--app-line); border-radius: 3px 3px 13px 3px; background: var(--app-surface); }
+#app .hor-card:hover { box-shadow: 0 9px 20px rgba(11,25,48,.08); }
+#app .hor-dot { background: var(--app-paper); }
+#app .hor-now { box-shadow: 0 0 0 2px #78934d, 0 10px 24px rgba(81,110,88,.18); }
+#app .hor-live { color: #3f5e42; border-color: #bdd88b; background: #ecf7d4; }
+#app .hor-progress { background: #e7ecd9; }#app .hor-progress > span { background: linear-gradient(90deg, #6e8d55, var(--app-lime)); }
+
+/* Panel lateral de calendario y notas */
+#app #rightPanel { width: 305px; border: 0; border-left: 1px solid var(--app-line); color: var(--app-ink); background: #ece8dc !important; }
+#app #miniCalendar { padding: 24px 20px; border-color: var(--app-line); }
+#app #miniCalendar h3, #app #notesPanel h3 { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 800; letter-spacing: -.015em; }
+#app .cal-day { color: #56645c; border-radius: 50%; }
+#app .cal-day:hover { color: var(--app-ink); background: #fff; }
+#app .cal-today { color: var(--app-ink) !important; background: var(--app-lime); box-shadow: none; }
+#app .cal-selected { color: var(--app-ink) !important; background: #d6eff2; box-shadow: inset 0 0 0 1px #6bafb8; }
+#app .cal-today.cal-selected { color: var(--app-ink) !important; background: var(--app-lime); box-shadow: inset 0 0 0 2px #617a38; }
+#app .cal-nav { color: #5e6a63; border-color: var(--app-line); border-radius: 50%; background: rgba(255,255,255,.45); }
+#app .cal-nav:hover { color: var(--app-ink); border-color: #9bb474; background: var(--app-lime); }
+#app #notesPanel { padding: 22px 20px; }
+#app #notesPanel form input { border-color: var(--app-line); border-radius: 3px 3px 12px 3px; background: rgba(255,255,255,.46); }
+#app #notesPanel form .btn-primary { color: var(--app-ink); border-radius: 50%; background: var(--app-lime); box-shadow: none; }
+#app .note-item { border-color: var(--app-line); border-radius: 3px 3px 12px 3px; color: #4e5c54; background: rgba(255,255,255,.46); }
+#app .note-item:hover { border-color: #b7c3b9; background: rgba(255,255,255,.8); }
+#app .note-item input[type="checkbox"] { accent-color: #64804f; }
+
+/* Vistas internas: tablas, formularios y tarjetas existentes */
+#app #content > .bg-white, #app #content > div > .bg-white, #app #content .fade-in.bg-white { border-color: var(--app-line) !important; border-radius: 4px 4px 22px 4px !important; background: var(--app-surface) !important; box-shadow: 0 4px 0 rgba(11,25,48,.035) !important; }
+#app #content table { color: #425048; font-size: 12px; }
+#app #content thead { border-color: var(--app-line) !important; background: #e9e6dc !important; }
+#app #content th { color: #6f7b73; font-size: 8px !important; font-weight: 800; letter-spacing: .11em; }
+#app #content tbody { border-color: var(--app-line); }
+#app #content tbody tr { border-color: var(--app-line); transition: background .18s; }
+#app #content tbody tr:hover { background: #f4f7e9; }
+#app #content input:not([type="checkbox"]):not([type="radio"]), #app #content select, #app #content textarea { border-color: var(--app-line); border-radius: 3px 3px 11px 3px; background-color: #faf8f2; }
+#app #content input:focus, #app #content select:focus, #app #content textarea:focus { border-color: #78934d; box-shadow: 0 0 0 3px rgba(120,147,77,.11); outline: 0; }
+#app #content .btn-primary { border-radius: 999px; background: var(--app-coral); box-shadow: 0 9px 20px rgba(255,107,74,.19); }
+#app #content .btn-primary:hover { background: #ed5e3e; transform: translateY(-2px); }
+#app #content .chip { border-radius: 999px; }
+#app .empty-state { color: #879289; }.empty-state .e-icon { filter: grayscale(.4); }
+
+/* Carga y entrada de páginas */
+#app #content > * { animation: appPageIn .42s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes appPageIn {
+    from { opacity: 0; transform: translateY(9px); }
+    to { opacity: 1; transform: none; }
+}
+#app .fade-up { animation-name: editorialFadeUp; animation-duration: .55s; animation-timing-function: cubic-bezier(.2,.8,.2,1); }
+@keyframes editorialFadeUp { from { opacity: 0; transform: translateY(18px) scale(.985); } to { opacity: 1; transform: none; } }
+
+/* Drawer móvil con el mismo lenguaje */
+#sidebar { background: linear-gradient(160deg, #071426, #102944) !important; }
+#sidebar > div:first-child { border-bottom: 1px solid rgba(255,255,255,.08); font-family: 'DM Sans', sans-serif; font-weight: 800; }
+#sidebar #navMenuMobile { padding: 15px; }
+#sidebar [data-nav].nav-active { color: #0b1930 !important; background: #c7f36b !important; }
+
+@media (max-width: 1279px) {
+    #app #rightPanel { display: none !important; }
+}
+@media (max-width: 767px) {
+    #app > main > header { min-height: 70px; height: 70px; }.md\:hidden { color: var(--app-ink); }.md\:hidden:hover { color: var(--app-coral); }
+    #app #currentDate { display: none; }#app #content { padding: 17px 14px 28px; }#app .dash-hero { min-height: 175px; padding: 27px 22px; border-radius: 3px 3px 25px 3px; }#app .dash-hero h2 { font-size: 27px; }#app .stat-card { min-height: 122px; }#app .widget-head { align-items: flex-start; flex-wrap: wrap; }#app .widget-head button { margin-left: 0; width: 100%; text-align: left; }
+}
+@media (prefers-reduced-motion: reduce) {
+    #app #content > *, #app .fade-up { opacity: 1; transform: none; animation: none; }
+}
+
+/* El horario conserva su diseño original y queda aislado del tema editorial. */
+#app .horario-widget {
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+}
+#app .horario-widget .widget-head { min-height: auto; padding: 1rem 1.25rem; border-bottom: 1px solid #f1f5f9; background: #fff; }
+#app .horario-widget .widget-head .w-icon { width: 2.1rem; height: 2.1rem; border: 0; border-radius: .65rem; background: #eef2ff !important; font-size: 1rem; }
+#app .horario-widget .widget-head h3 { color: #0f172a; font-family: 'DM Sans', sans-serif; font-size: .95rem; font-weight: 700; }
+#app .horario-widget .widget-body { padding: 1.1rem 1.25rem; }
+#app .horario-widget .hor-list::before { background: #e2e8f0; }
+#app .horario-widget .hor-dot { background: #fff; }
+#app .horario-widget .hor-card { border: 1px solid #e2e8f0; border-left: 4px solid #94a3b8; border-radius: .75rem; background: #fff; box-shadow: none; }
+#app .horario-widget .hor-card:hover { box-shadow: 0 6px 14px -6px rgba(15,23,42,.18); }
+#app .horario-widget .hc-free { border-style: dashed; border-left-style: solid; border-left-color: #cbd5e1; background: #f8fafc; }
+#app .horario-widget .hc-break { border: 1px dashed #fde68a; border-left: 4px solid #fbbf24; background: #fffbeb; }
+#app .horario-widget .hor-progress { background: #e0e7ff; }
+#app .horario-widget .hor-progress > span { background: linear-gradient(90deg, #6366f1, #2563eb); }
+#app .horario-widget .hor-now { box-shadow: 0 0 0 2px #6366f1, 0 8px 18px -8px rgba(79,70,229,.5); }
+#app .horario-widget .hor-live { color: #4f46e5; border-color: #c7d2fe; background: #eef2ff; }
+#app .horario-widget .hor-card.ha-blue    { border-left-color: #3b82f6; background: linear-gradient(90deg, #eff6ff 0%, #fff 60%); }
+#app .horario-widget .hor-card.ha-purple  { border-left-color: #a855f7; background: linear-gradient(90deg, #faf5ff 0%, #fff 60%); }
+#app .horario-widget .hor-card.ha-amber   { border-left-color: #f59e0b; background: linear-gradient(90deg, #fffbeb 0%, #fff 60%); }
+#app .horario-widget .hor-card.ha-emerald { border-left-color: #10b981; background: linear-gradient(90deg, #ecfdf5 0%, #fff 60%); }
+#app .horario-widget .hor-card.ha-cyan    { border-left-color: #06b6d4; background: linear-gradient(90deg, #ecfeff 0%, #fff 60%); }
+#app .horario-widget .hor-card.ha-orange  { border-left-color: #f97316; background: linear-gradient(90deg, #fff7ed 0%, #fff 60%); }
+#app .horario-widget .hor-card.ha-pink    { border-left-color: #ec4899; background: linear-gradient(90deg, #fdf2f8 0%, #fff 60%); }
+#app .horario-widget .hor-card.ha-teal    { border-left-color: #14b8a6; background: linear-gradient(90deg, #f0fdfa 0%, #fff 60%); }
 

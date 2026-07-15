@@ -250,7 +250,7 @@ function asigClass(nombre) {
 }
 const HA_COLORS = { 'ha-blue': '#3b82f6', 'ha-purple': '#a855f7', 'ha-amber': '#f59e0b', 'ha-emerald': '#10b981', 'ha-cyan': '#06b6d4', 'ha-orange': '#f97316', 'ha-pink': '#ec4899', 'ha-teal': '#14b8a6' };
 function horarioWidget(delayClass = '') {
-    return `<div class="widget-card ${delayClass ? 'fade-up ' + delayClass : ''} mb-7">
+    return `<div class="widget-card horario-widget ${delayClass ? 'fade-up ' + delayClass : ''} mb-7">
         <div class="widget-head">
             <span class="w-icon bg-indigo-50">🗓️</span>
             <div class="min-w-0"><h3>Horario del Día</h3><span id="horarioDiaFecha" class="block text-[11px] text-slate-400 font-medium truncate"></span></div>
