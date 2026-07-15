@@ -1206,7 +1206,8 @@ async function renderAdminEstudiantes() {
 
     document.getElementById('content').innerHTML = headerHtml + html;
 }
-function openStudentModal() {
+async function openStudentModal() {
+    const cursos = await AdminApi.obtenerCursos();
     const m = document.getElementById('modal');
     document.getElementById('modalContent').innerHTML = `
     <div class="p-6 border-b border-gray-100 flex justify-between items-center">
@@ -1228,7 +1229,7 @@ function openStudentModal() {
             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Curso</label>
             <select id="modalEstCurso" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none">
                 <option value="">Seleccione un curso...</option>
-                ${MOCK_DB.cursos.map(c => `<option value="${c.idCurso}">${c.nombreCurso}</option>`).join('')}
+                ${cursos.map(c => `<option value="${c.idCurso}">${escapeHtml(c.nombreCurso)}</option>`).join('')}
             </select>
         </div>
         <div>
@@ -1250,15 +1251,14 @@ async function saveStudent(e) {
     const rut = document.getElementById('modalEstRut').value.trim();
     const idCurso = parseInt(document.getElementById('modalEstCurso').value);
     const correo = document.getElementById('modalEstCorreo').value.trim();
-    const curso = MOCK_DB.cursos.find(c => c.idCurso === idCurso);
-    
-    await AdminApi.crearEstudiante({
-        nombre, rut, idCurso, nombreCurso: curso.nombreCurso, curso: curso.nivel + ' ' + curso.paralelo, correo
-    });
-    
-    closeModal();
-    toast('✅ Alumno matriculado exitosamente');
-    await renderAdminEstudiantes();
+    try {
+        await AdminApi.crearEstudiante({ nombre, rut, idCurso, correo });
+        closeModal();
+        toast('✅ Alumno matriculado exitosamente');
+        await renderAdminEstudiantes();
+    } catch (error) {
+        toast(error.message || 'No fue posible matricular al alumno');
+    }
 }
 // ==========================================
 // GESTIÓN DE CURSOS - MODAL
@@ -3051,8 +3051,15 @@ async function exportarExcelDocente(origen) {
 
 // --- ESTUDIANTES ---
 async function openEditStudentModal(idEstudiante) {
-    const estudiante = MOCK_DB.estudiantes.find(e => e.idEstudiante === idEstudiante);
-    if (!estudiante) return;
+    const [estudiantes, cursos] = await Promise.all([
+        AdminApi.estudiantes(),
+        AdminApi.obtenerCursos()
+    ]);
+    const estudiante = estudiantes.find(e => e.idEstudiante === idEstudiante);
+    if (!estudiante) {
+        toast('No fue posible encontrar al alumno seleccionado');
+        return;
+    }
 
     const m = document.getElementById('modal');
     document.getElementById('modalContent').innerHTML = `
@@ -3063,18 +3070,22 @@ async function openEditStudentModal(idEstudiante) {
         <form id="formEditStudent" onsubmit="saveEditedStudent(event, ${idEstudiante})" class="p-6 space-y-4">
             <div>
                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre Completo</label>
-                <input type="text" id="editEstNombre" required value="${estudiante.nombre}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
+                <input type="text" id="editEstNombre" required value="${escapeHtml(estudiante.nombre)}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
             </div>
             <div>
                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">RUT</label>
-                <input type="text" id="editEstRut" required value="${estudiante.rut}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
+                <input type="text" id="editEstRut" required value="${escapeHtml(estudiante.rut)}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Correo</label>
+                <input type="email" id="editEstCorreo" value="${escapeHtml(estudiante.correo || '')}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
             </div>
             <div>
                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Curso Asignado</label>
                 <select id="editEstCurso" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none">
-                    ${MOCK_DB.cursos.map(c => {
-                        const selected = (c.nombreCurso === estudiante.nombreCurso) ? 'selected' : '';
-                        return `<option value="${c.idCurso}" ${selected}>${c.nombreCurso}</option>`;
+                    ${cursos.map(c => {
+                        const selected = c.idCurso === estudiante.idCurso ? 'selected' : '';
+                        return `<option value="${c.idCurso}" ${selected}>${escapeHtml(c.nombreCurso)}</option>`;
                     }).join('')}
                 </select>
             </div>
@@ -3090,17 +3101,19 @@ async function openEditStudentModal(idEstudiante) {
 async function saveEditedStudent(e, idEstudiante) {
     e.preventDefault();
     const idCurso = parseInt(document.getElementById('editEstCurso').value);
-    const cursoObj = MOCK_DB.cursos.find(c => c.idCurso === idCurso);
-    
-    await AdminApi.editarEstudiante(idEstudiante, {
-        nombre: document.getElementById('editEstNombre').value,
-        rut: document.getElementById('editEstRut').value,
-        nombreCurso: cursoObj.nombreCurso,
-        curso: cursoObj.nivel + ' ' + cursoObj.paralelo
-    });
-    closeModal();
-    toast('✅ Alumno actualizado');
-    await renderAdminEstudiantes();
+    try {
+        await AdminApi.editarEstudiante(idEstudiante, {
+            nombre: document.getElementById('editEstNombre').value.trim(),
+            rut: document.getElementById('editEstRut').value.trim(),
+            correo: document.getElementById('editEstCorreo').value.trim(),
+            idCurso
+        });
+        closeModal();
+        toast('✅ Alumno actualizado');
+        await renderAdminEstudiantes();
+    } catch (error) {
+        toast(error.message || 'No fue posible actualizar al alumno');
+    }
 }
 
 async function deleteStudent(idEstudiante) {

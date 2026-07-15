@@ -75,6 +75,7 @@ public class AdminController(SigaDbContext db) : ControllerBase
         var resultado = await query.Select(e => new
         {
             e.IdEstudiante,
+            e.IdCurso,
             e.Nombre,
             e.Rut,
             e.Correo,
@@ -95,15 +96,21 @@ public class AdminController(SigaDbContext db) : ControllerBase
         return Ok(true);
     }
 
+    public record EditarEstudianteDto(string Rut, string Nombre, string? Correo, int IdCurso);
+
     [HttpPut("estudiantes/{id}")]
-    public async Task<IActionResult> EditarEstudiante(int id, Estudiante datos)
+    public async Task<IActionResult> EditarEstudiante(int id, EditarEstudianteDto datos)
     {
         var est = await db.Estudiantes.FindAsync(id);
         if (est == null) return NotFound(new { mensaje = "Estudiante no encontrado" });
-        est.Nombre = datos.Nombre;
-        est.Correo = datos.Correo;
+        if (!await db.Cursos.AnyAsync(c => c.IdCurso == datos.IdCurso && c.Activo))
+            return BadRequest(new { mensaje = "El curso seleccionado no existe o está inactivo." });
+        if (await db.Estudiantes.AnyAsync(e => e.IdEstudiante != id && e.Rut == datos.Rut.Trim()))
+            return BadRequest(new { mensaje = "El RUT ya se encuentra registrado." });
+        est.Rut = datos.Rut.Trim();
+        est.Nombre = datos.Nombre.Trim();
+        est.Correo = string.IsNullOrWhiteSpace(datos.Correo) ? null : datos.Correo.Trim();
         est.IdCurso = datos.IdCurso;
-        est.IdApoderado = datos.IdApoderado;
         await db.SaveChangesAsync();
         return Ok(true);
     }
