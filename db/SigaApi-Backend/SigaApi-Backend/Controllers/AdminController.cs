@@ -221,11 +221,17 @@ public class AdminController(SigaDbContext db) : ControllerBase
     {
         var query = db.Calificaciones.AsQueryable();
         if (idCurso.HasValue) query = query.Where(c => c.IdCurso == idCurso);
-        return Ok(await query.Select(c => new
-        {
-            c.IdCalificacion, c.IdEstudiante, c.IdCurso, c.TipoEvaluacion, c.Descripcion,
-            c.Nota, c.Ponderacion, c.FechaRegistro, c.FechaNota,
-            nombreEstudiante = db.Estudiantes.Where(e => e.IdEstudiante == c.IdEstudiante).Select(e => e.Nombre).FirstOrDefault()
-        }).ToListAsync());
+        return Ok(await (
+            from c in query
+            join e in db.Estudiantes on c.IdEstudiante equals e.IdEstudiante
+            join curso in db.Cursos on c.IdCurso equals curso.IdCurso
+            select new
+            {
+                c.IdCalificacion, c.IdEstudiante, nombreEstudiante = e.Nombre,
+                c.IdCurso, nombreCurso = curso.Asignatura + " " + curso.Nivel + curso.Paralelo,
+                asignatura = curso.Asignatura,
+                c.TipoEvaluacion, c.Descripcion, c.Nota, c.Ponderacion,
+                c.FechaRegistro, c.FechaNota
+            }).ToListAsync());
     }
 }

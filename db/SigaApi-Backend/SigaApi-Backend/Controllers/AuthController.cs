@@ -18,13 +18,17 @@ public class AuthController(SigaDbContext db, IConfiguration config) : Controlle
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest req)
     {
+        if (string.IsNullOrWhiteSpace(req.Identificador) || string.IsNullOrWhiteSpace(req.Contrasena))
+            return BadRequest(new { mensaje = "Debes ingresar usuario y contraseña." });
+
+        var identificador = req.Identificador.Trim();
         // Se busca el correo en las 3 tablas de rol (no hay tabla Usuario central)
-        var admin = await db.Administradores.FirstOrDefaultAsync(a => a.Correo == req.Identificador && a.Activo);
-        if (admin != null && BCrypt.Net.BCrypt.Verify(req.Contrasena, admin.ContrasenaHash))
+        var admin = await db.Administradores.FirstOrDefaultAsync(a => a.Correo == identificador && a.Activo);
+        if (admin != null && ContrasenaValida(req.Contrasena, admin.ContrasenaHash))
             return Ok(GenerarRespuesta(admin.IdAdministrador, admin.Nombre, "ADMIN"));
 
-        var docente = await db.Docentes.FirstOrDefaultAsync(d => d.Correo == req.Identificador && d.Activo);
-        if (docente != null && BCrypt.Net.BCrypt.Verify(req.Contrasena, docente.ContrasenaHash))
+        var docente = await db.Docentes.FirstOrDefaultAsync(d => d.Correo == identificador && d.Activo);
+        if (docente != null && ContrasenaValida(req.Contrasena, docente.ContrasenaHash))
         {
             var cursosAsignados = await db.DocenteCursos
                 .Where(dc => dc.IdDocente == docente.IdDocente)
@@ -33,14 +37,22 @@ public class AuthController(SigaDbContext db, IConfiguration config) : Controlle
             return Ok(GenerarRespuesta(docente.IdDocente, docente.Nombre, "DOCENTE", cursosAsignados: cursosAsignados));
         }
 
-        var apoderado = await db.Apoderados.FirstOrDefaultAsync(a => a.Correo == req.Identificador && a.Activo);
-        if (apoderado != null && BCrypt.Net.BCrypt.Verify(req.Contrasena, apoderado.ContrasenaHash))
+        var apoderado = await db.Apoderados.FirstOrDefaultAsync(a => a.Correo == identificador && a.Activo);
+        if (apoderado != null && ContrasenaValida(req.Contrasena, apoderado.ContrasenaHash))
         {
             var pupilo = await db.Estudiantes.FirstOrDefaultAsync(e => e.IdApoderado == apoderado.IdApoderado);
             return Ok(GenerarRespuesta(apoderado.IdApoderado, apoderado.Nombre, "APODERADO", pupiloId: pupilo?.IdEstudiante));
         }
 
         return Unauthorized(new { mensaje = "Credenciales invalidas" });
+    }
+
+    private static bool ContrasenaValida(string contrasena, string? hash)
+    {
+        if (string.IsNullOrWhiteSpace(hash)) return false;
+        try { return BCrypt.Net.BCrypt.Verify(contrasena, hash); }
+        catch (ArgumentException) { return false; }
+        catch (FormatException) { return false; }
     }
 
     [HttpPost("logout")]

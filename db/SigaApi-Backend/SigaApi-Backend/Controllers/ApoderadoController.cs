@@ -34,7 +34,27 @@ public class ApoderadoController(SigaDbContext db) : ControllerBase
     public async Task<IActionResult> Calificaciones()
     {
         var idPupilo = await IdPupiloAsync();
-        return Ok(await db.Calificaciones.Where(c => c.IdEstudiante == idPupilo).ToListAsync());
+        var resultado = await (
+            from c in db.Calificaciones
+            join e in db.Estudiantes on c.IdEstudiante equals e.IdEstudiante
+            join curso in db.Cursos on c.IdCurso equals curso.IdCurso
+            where c.IdEstudiante == idPupilo
+            select new
+            {
+                c.IdCalificacion,
+                c.IdEstudiante,
+                nombreEstudiante = e.Nombre,
+                c.IdCurso,
+                nombreCurso = curso.Asignatura + " " + curso.Nivel + curso.Paralelo,
+                asignatura = curso.Asignatura,
+                c.TipoEvaluacion,
+                c.Descripcion,
+                c.Nota,
+                c.Ponderacion,
+                c.FechaRegistro,
+                c.FechaNota
+            }).ToListAsync();
+        return Ok(resultado);
     }
 
     [HttpGet("asistencia")]
@@ -48,7 +68,30 @@ public class ApoderadoController(SigaDbContext db) : ControllerBase
     public async Task<IActionResult> Anotaciones()
     {
         var idPupilo = await IdPupiloAsync();
-        return Ok(await db.Anotaciones.Where(a => a.IdEstudiante == idPupilo).ToListAsync());
+        var resultado = await (
+            from a in db.Anotaciones
+            join e in db.Estudiantes on a.IdEstudiante equals e.IdEstudiante
+            join curso in db.Cursos on (a.IdCurso ?? e.IdCurso) equals curso.IdCurso
+            join docente in db.Docentes on a.IdDocente equals docente.IdDocente
+            where a.IdEstudiante == idPupilo
+            select new
+            {
+                id = a.IdAnotacion,
+                a.IdAnotacion,
+                a.IdEstudiante,
+                nombreEstudiante = e.Nombre,
+                a.IdDocente,
+                nombreDocente = docente.Nombre,
+                idCurso = (int?)curso.IdCurso,
+                nombreCurso = curso.Asignatura + " " + curso.Nivel + curso.Paralelo,
+                asignatura = curso.Asignatura,
+                tipo = a.Tipo,
+                tipoAnotacion = a.Tipo,
+                observacion = a.Observacion,
+                detalles = a.Observacion,
+                a.FechaRegistro
+            }).ToListAsync();
+        return Ok(resultado);
     }
 
     [HttpGet("materiales")]

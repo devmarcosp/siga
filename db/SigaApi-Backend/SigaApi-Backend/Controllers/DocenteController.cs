@@ -96,19 +96,25 @@ public class DocenteController(SigaDbContext db) : ControllerBase
         var query = db.Calificaciones.Where(c => cursosIds.Contains(c.IdCurso));
         if (idCurso.HasValue) query = query.Where(c => c.IdCurso == idCurso);
 
-        var resultado = await query.Select(c => new
-        {
-            c.IdCalificacion,
-            c.IdEstudiante,
-            nombreEstudiante = db.Estudiantes.Where(e => e.IdEstudiante == c.IdEstudiante).Select(e => e.Nombre).FirstOrDefault(),
-            c.IdCurso,
-            c.TipoEvaluacion,
-            c.Descripcion,
-            c.Nota,
-            c.Ponderacion,
-            c.FechaRegistro,
-            c.FechaNota
-        }).ToListAsync();
+        var resultado = await (
+            from c in query
+            join e in db.Estudiantes on c.IdEstudiante equals e.IdEstudiante
+            join curso in db.Cursos on c.IdCurso equals curso.IdCurso
+            select new
+            {
+                c.IdCalificacion,
+                c.IdEstudiante,
+                nombreEstudiante = e.Nombre,
+                c.IdCurso,
+                nombreCurso = curso.Asignatura + " " + curso.Nivel + curso.Paralelo,
+                asignatura = curso.Asignatura,
+                c.TipoEvaluacion,
+                c.Descripcion,
+                c.Nota,
+                c.Ponderacion,
+                c.FechaRegistro,
+                c.FechaNota
+            }).ToListAsync();
         return Ok(resultado);
     }
 
@@ -154,7 +160,29 @@ public class DocenteController(SigaDbContext db) : ControllerBase
     [HttpGet("anotaciones")]
     public async Task<IActionResult> Anotaciones()
     {
-        var anotaciones = await db.Anotaciones.Where(a => a.IdDocente == IdDocenteActual).ToListAsync();
+        var anotaciones = await (
+            from a in db.Anotaciones
+            join e in db.Estudiantes on a.IdEstudiante equals e.IdEstudiante
+            join curso in db.Cursos on (a.IdCurso ?? e.IdCurso) equals curso.IdCurso
+            join docente in db.Docentes on a.IdDocente equals docente.IdDocente
+            where a.IdDocente == IdDocenteActual
+            select new
+            {
+                id = a.IdAnotacion,
+                a.IdAnotacion,
+                a.IdEstudiante,
+                nombreEstudiante = e.Nombre,
+                a.IdDocente,
+                nombreDocente = docente.Nombre,
+                idCurso = (int?)curso.IdCurso,
+                nombreCurso = curso.Asignatura + " " + curso.Nivel + curso.Paralelo,
+                asignatura = curso.Asignatura,
+                tipo = a.Tipo,
+                tipoAnotacion = a.Tipo,
+                observacion = a.Observacion,
+                detalles = a.Observacion,
+                a.FechaRegistro
+            }).ToListAsync();
         return Ok(anotaciones);
     }
 
