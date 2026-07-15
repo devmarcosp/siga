@@ -39,7 +39,38 @@ const MOCK_DB = {
     alertas: [
         { nombre: 'Martín Ruiz', tipoRiesgo: 'Inasistencia', semaforoEstado: 'AMARILLO', fecha: '2024-05-20' },
         { nombre: 'Javiera López', tipoRiesgo: 'Bajo Rendimiento', semaforoEstado: 'ROJO', fecha: '2024-05-18' }
-    ]
+    ],
+
+    // === HORARIO (SOLO DEMO) ===
+    // Basado en la tabla Curso (asignatura, nivel, paralelo) y DocenteCurso.
+    // Bloques de clase + recreos/almuerzo de una jornada escolar típica.
+    bloques: [
+        { id: 1, tipo: 'CLASE', inicio: '08:00', fin: '08:45' },
+        { id: 2, tipo: 'CLASE', inicio: '08:50', fin: '09:35' },
+        { id: 0, tipo: 'RECREO', inicio: '09:35', fin: '09:55', nombre: 'Recreo' },
+        { id: 3, tipo: 'CLASE', inicio: '09:55', fin: '10:40' },
+        { id: 4, tipo: 'CLASE', inicio: '10:45', fin: '11:30' },
+        { id: 0, tipo: 'RECREO', inicio: '11:30', fin: '11:45', nombre: 'Recreo' },
+        { id: 5, tipo: 'CLASE', inicio: '11:45', fin: '12:30' },
+        { id: 0, tipo: 'ALMUERZO', inicio: '12:30', fin: '13:25', nombre: 'Almuerzo' },
+        { id: 6, tipo: 'CLASE', inicio: '13:30', fin: '14:15' }
+    ],
+    // Horario semanal del docente (1=Lunes … 5=Viernes) → bloques con curso asignado (idCurso de MOCK_DB.cursos)
+    horarioDocente: {
+        1: [{ bloque: 1, idCurso: 1, sala: 'Sala 201' }, { bloque: 2, idCurso: 1, sala: 'Sala 201' }, { bloque: 3, idCurso: 2, sala: 'Sala 105' }, { bloque: 4, idCurso: 2, sala: 'Sala 105' }, { bloque: 6, idCurso: 3, sala: 'Sala 302' }],
+        2: [{ bloque: 1, idCurso: 3, sala: 'Sala 302' }, { bloque: 2, idCurso: 3, sala: 'Sala 302' }, { bloque: 3, idCurso: 1, sala: 'Sala 201' }, { bloque: 5, idCurso: 2, sala: 'Sala 105' }, { bloque: 6, idCurso: 2, sala: 'Sala 105' }],
+        3: [{ bloque: 1, idCurso: 2, sala: 'Sala 105' }, { bloque: 2, idCurso: 1, sala: 'Sala 201' }, { bloque: 3, idCurso: 1, sala: 'Sala 201' }, { bloque: 4, idCurso: 3, sala: 'Sala 302' }, { bloque: 5, idCurso: 3, sala: 'Sala 302' }],
+        4: [{ bloque: 2, idCurso: 2, sala: 'Sala 105' }, { bloque: 3, idCurso: 3, sala: 'Sala 302' }, { bloque: 4, idCurso: 1, sala: 'Sala 201' }, { bloque: 5, idCurso: 1, sala: 'Sala 201' }, { bloque: 6, idCurso: 2, sala: 'Sala 105' }],
+        5: [{ bloque: 1, idCurso: 1, sala: 'Sala 201' }, { bloque: 2, idCurso: 3, sala: 'Sala 302' }, { bloque: 3, idCurso: 2, sala: 'Sala 105' }, { bloque: 4, idCurso: 1, sala: 'Sala 201' }, { bloque: 6, idCurso: 3, sala: 'Sala 302' }]
+    },
+    // Horario semanal del pupilo (curso 8vo Básico A) → asignatura + docente + sala por bloque
+    horarioPupilo: {
+        1: [{ bloque: 1, asignatura: 'Matemáticas', docente: 'Andrea Torres', sala: 'Sala 201' }, { bloque: 2, asignatura: 'Matemáticas', docente: 'Andrea Torres', sala: 'Sala 201' }, { bloque: 3, asignatura: 'Lenguaje', docente: 'Pedro Soto', sala: 'Sala 201' }, { bloque: 4, asignatura: 'Historia', docente: 'Carlos Muñoz', sala: 'Sala 201' }, { bloque: 5, asignatura: 'Ciencias Naturales', docente: 'María Rojas', sala: 'Lab. Ciencias' }, { bloque: 6, asignatura: 'Inglés', docente: 'Laura Vega', sala: 'Sala 201' }],
+        2: [{ bloque: 1, asignatura: 'Lenguaje', docente: 'Pedro Soto', sala: 'Sala 201' }, { bloque: 2, asignatura: 'Lenguaje', docente: 'Pedro Soto', sala: 'Sala 201' }, { bloque: 3, asignatura: 'Matemáticas', docente: 'Andrea Torres', sala: 'Sala 201' }, { bloque: 4, asignatura: 'Ed. Física', docente: 'Diego Paredes', sala: 'Gimnasio' }, { bloque: 5, asignatura: 'Ed. Física', docente: 'Diego Paredes', sala: 'Gimnasio' }, { bloque: 6, asignatura: 'Música', docente: 'Camila Silva', sala: 'Sala Música' }],
+        3: [{ bloque: 1, asignatura: 'Historia', docente: 'Carlos Muñoz', sala: 'Sala 201' }, { bloque: 2, asignatura: 'Historia', docente: 'Carlos Muñoz', sala: 'Sala 201' }, { bloque: 3, asignatura: 'Ciencias Naturales', docente: 'María Rojas', sala: 'Lab. Ciencias' }, { bloque: 4, asignatura: 'Matemáticas', docente: 'Andrea Torres', sala: 'Sala 201' }, { bloque: 5, asignatura: 'Inglés', docente: 'Laura Vega', sala: 'Sala 201' }, { bloque: 6, asignatura: 'Tecnología', docente: 'Rodrigo Núñez', sala: 'Sala Computación' }],
+        4: [{ bloque: 1, asignatura: 'Ciencias Naturales', docente: 'María Rojas', sala: 'Lab. Ciencias' }, { bloque: 2, asignatura: 'Ciencias Naturales', docente: 'María Rojas', sala: 'Lab. Ciencias' }, { bloque: 3, asignatura: 'Lenguaje', docente: 'Pedro Soto', sala: 'Sala 201' }, { bloque: 4, asignatura: 'Matemáticas', docente: 'Andrea Torres', sala: 'Sala 201' }, { bloque: 5, asignatura: 'Artes Visuales', docente: 'Camila Silva', sala: 'Taller Artes' }, { bloque: 6, asignatura: 'Artes Visuales', docente: 'Camila Silva', sala: 'Taller Artes' }],
+        5: [{ bloque: 1, asignatura: 'Inglés', docente: 'Laura Vega', sala: 'Sala 201' }, { bloque: 2, asignatura: 'Matemáticas', docente: 'Andrea Torres', sala: 'Sala 201' }, { bloque: 3, asignatura: 'Historia', docente: 'Carlos Muñoz', sala: 'Sala 201' }, { bloque: 4, asignatura: 'Lenguaje', docente: 'Pedro Soto', sala: 'Sala 201' }, { bloque: 5, asignatura: 'Orientación', docente: 'Andrea Torres', sala: 'Sala 201' }, { bloque: 6, asignatura: 'Ed. Física', docente: 'Diego Paredes', sala: 'Gimnasio' }]
+    }
 };
 
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
@@ -300,6 +331,12 @@ const DocenteApi = {
         const cursosIds = getDocenteCursosIds();
         return MOCK_DB.cursos.filter(c => cursosIds.includes(c.idCurso));
     },
+
+    // Horario del docente para un día de la semana (1=Lunes … 5=Viernes). SOLO DEMO.
+    horario: async (diaSemana) => {
+        await delay(80);
+        return { bloques: MOCK_DB.bloques, clases: MOCK_DB.horarioDocente[diaSemana] || [] };
+    },
     
     estudiantes: async (idCurso) => {
         const cursosIds = getDocenteCursosIds();
@@ -470,7 +507,12 @@ const ApoderadoApi = {
     asistencia: async () => MOCK_DB.asistencia.filter(a => a.idEstudiante === ApoderadoApi.getidEstudiante()),
     anotaciones: async () => MOCK_DB.anotaciones.filter(a => a.idEstudiante === ApoderadoApi.getidEstudiante()),
     materiales: async () => MOCK_DB.materiales,
-    descargarMaterial: (id) => '#'
+    descargarMaterial: (id) => '#',
+    // Horario del pupilo para un día de la semana (1=Lunes … 5=Viernes). SOLO DEMO.
+    horario: async (diaSemana) => {
+        await delay(80);
+        return { bloques: MOCK_DB.bloques, clases: MOCK_DB.horarioPupilo[diaSemana] || [] };
+    }
 };
 
 // Adaptador HTTP: se activa en js/config.js cuando frontend y API están desplegados.

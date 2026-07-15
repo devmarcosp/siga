@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+
+# Visual Studio / VS Code local settings
+.vs/
+.vscode/settings.json
+*.user
+*.suo
+
+# .NET build output
+**/bin/
+**/obj/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+appsettings.Development.json
+appsettings.Production.json
+secrets.json
+
+# Logs and temporary files
+*.log
+*.tmp
+latest/
+latest.zip
+
+# Node dependencies (if a build tool is added later)
+node_modules/

@@ -311,3 +311,4 @@ VALUES
 (2, 'Inasistencia', 'AMARILLO', '2024-05-20');
 
 GO
+

@@ -18,13 +18,60 @@ function closeSidebar() {
     document.getElementById('sidebarOverlay').classList.add('hidden');
 }
 function showLanding() {
-    document.getElementById('loginScreen')?.classList.add('hidden');
-    document.getElementById('landingPage')?.classList.remove('hidden');
+    const login = document.getElementById('loginScreen');
+    const landing = document.getElementById('landingPage');
+    if (!login || !landing) return;
+    if (login.classList.contains('hidden')) {
+        landing.classList.remove('hidden', 'landing-is-leaving');
+        return;
+    }
+    if (document.body.classList.contains('auth-transitioning')) return;
+    document.body.classList.add('auth-transitioning');
+    landing.classList.remove('hidden');
+    landing.classList.add('landing-is-returning');
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            landing.classList.remove('landing-is-returning');
+            login.classList.add('auth-is-leaving');
+        });
+    });
+    window.setTimeout(() => {
+        login.classList.add('hidden');
+        login.classList.remove('auth-is-visible', 'auth-is-leaving');
+        login.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('auth-transitioning');
+    }, authTransitionTime());
 }
 function openLogin() {
-    document.getElementById('landingPage')?.classList.add('hidden');
-    document.getElementById('loginScreen')?.classList.remove('hidden');
-    document.getElementById('loginUser')?.focus();
+    const login = document.getElementById('loginScreen');
+    const landing = document.getElementById('landingPage');
+    if (!login || !landing || document.body.classList.contains('auth-transitioning')) return;
+    document.body.classList.add('auth-transitioning');
+    login.classList.remove('hidden', 'auth-is-leaving', 'auth-is-visible');
+    login.setAttribute('aria-hidden', 'false');
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            login.classList.add('auth-is-visible');
+            landing.classList.add('landing-is-leaving');
+        });
+    });
+    window.setTimeout(() => {
+        landing.classList.add('hidden');
+        landing.classList.remove('landing-is-leaving');
+        document.body.classList.remove('auth-transitioning');
+        document.getElementById('loginUser')?.focus();
+    }, authTransitionTime());
+}
+function authTransitionTime() { return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 720; }
+function toggleLoginPassword() {
+    const input = document.getElementById('loginPass');
+    const button = document.querySelector('.password-toggle');
+    if (!input || !button) return;
+    const showing = input.type === 'text';
+    input.type = showing ? 'password' : 'text';
+    button.textContent = showing ? 'Ver' : 'Ocultar';
+    button.setAttribute('aria-label', showing ? 'Mostrar contraseña' : 'Ocultar contraseña');
+    button.setAttribute('aria-pressed', String(!showing));
 }
 function openRegister() {
     document.getElementById('modalContent').innerHTML = `
@@ -57,9 +104,265 @@ async function submitRegistration(event) {
         closeModal(); toast('Solicitud enviada. Debe ser aprobada por un administrador.');
     } catch (e) { error.textContent = e.message; error.classList.remove('hidden'); }
 }
-function statCard(icon, label, value, colorClass) {
-    return `<div class="bg-white rounded-xl shadow-sm p-5 flex items-center gap-4 stat-card"> <div class="w-12 h-12 ${colorClass} text-white rounded-lg flex items-center justify-center text-2xl">${icon}</div> <div><div class="text-xs text-slate-500 uppercase tracking-wide font-semibold">${label}</div> <div class="text-2xl font-bold text-slate-900">${value}</div></div></div>`;
+function statCard(icon, label, value, colorClass, extra = '') {
+    return `<div class="bg-white rounded-2xl p-5 flex items-center gap-4 stat-card h-full">
+        <div class="w-12 h-12 ${colorClass} text-white rounded-xl flex items-center justify-center text-2xl shrink-0">${icon}</div>
+        <div class="min-w-0">
+            <div class="text-[11px] text-slate-400 uppercase tracking-wider font-bold">${label}</div>
+            <div class="text-2xl font-extrabold text-slate-900 truncate" title="${value}">${value}</div>
+            ${extra ? `<div class="text-[11px] text-slate-400 mt-0.5">${extra}</div>` : ''}
+        </div>
+        <span class="stat-glow ${colorClass}"></span>
+    </div>`;
 }
+function greeting() {
+    const h = new Date().getHours();
+    return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
+}
+function firstName(nombre) { return String(nombre || '').trim().split(' ')[0]; }
+function dashHero(rol, title, subtitle, extra = '') {
+    const mod = { ADMIN: 'admin', DOCENTE: 'docente', APODERADO: 'apoderado' }[rol] || 'admin';
+    let fecha = new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
+    fecha = fecha.charAt(0).toUpperCase() + fecha.slice(1);
+    return `<div class="dash-hero dash-hero--${mod} fade-up mb-7">
+        <span class="hero-chip">📅 ${fecha}</span>
+        <h2 class="text-2xl md:text-3xl font-extrabold mt-3 relative z-10">${title}</h2>
+        <p class="text-white/80 text-sm mt-1.5 max-w-2xl relative z-10">${subtitle}</p>
+        ${extra}
+    </div>`;
+}
+function quickAction(view, icon, iconBg, title, desc) {
+    return `<button onclick="navigate('${view}')" class="quick-action">
+        <span class="qa-icon ${iconBg}">${icon}</span>
+        <span class="min-w-0"><span class="block font-bold text-sm text-slate-800">${title}</span><span class="block text-xs text-slate-400 truncate">${desc}</span></span>
+        <span class="qa-arrow">→</span>
+    </button>`;
+}
+function emptyState(icon, msg) {
+    return `<div class="empty-state"><span class="e-icon">${icon}</span>${msg}</div>`;
+}
+
+// === PANEL DERECHO: CALENDARIO + PENDIENTES ===
+let calRef = new Date();
+let selectedDate = new Date(); // día seleccionado en el calendario (mueve el horario)
+let horarioScrollKey = '';
+function sameDay(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+function updateRightPanel() {
+    const p = document.getElementById('rightPanel');
+    if (!p) return;
+    const show = !!currentUser && currentView === 'dashboard';
+    p.classList.toggle('xl:flex', show);
+    if (show) { renderMiniCalendar(); renderNotesPanel(); }
+}
+function calMove(delta) { calRef.setMonth(calRef.getMonth() + delta); renderMiniCalendar(); }
+function calToday() { calRef = new Date(); selectedDate = new Date(); renderMiniCalendar(); updateHorarioWidgets(); }
+function calSelect(y, m, d) { selectedDate = new Date(y, m, d); renderMiniCalendar(); updateHorarioWidgets(); }
+function renderMiniCalendar() {
+    const el = document.getElementById('miniCalendar');
+    if (!el) return;
+    const today = new Date();
+    const y = calRef.getFullYear(), m = calRef.getMonth();
+    let title = calRef.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
+    title = title.charAt(0).toUpperCase() + title.slice(1);
+    const offset = (new Date(y, m, 1).getDay() + 6) % 7; // semana inicia lunes
+    const dias = new Date(y, m + 1, 0).getDate();
+    const esMesActual = m === today.getMonth() && y === today.getFullYear();
+    let cells = '<span></span>'.repeat(offset);
+    for (let d = 1; d <= dias; d++) {
+        const fecha = new Date(y, m, d);
+        const cls = ['cal-day',
+            esMesActual && d === today.getDate() ? 'cal-today' : '',
+            sameDay(fecha, selectedDate) ? 'cal-selected' : '',
+            fecha.getDay() === 0 ? 'cal-sunday' : ''
+        ].filter(Boolean).join(' ');
+        cells += `<span class="${cls}" onclick="calSelect(${y},${m},${d})" title="Ver horario del día">${d}</span>`;
+    }
+    const mostrarHoy = !esMesActual || !sameDay(selectedDate, today);
+    el.innerHTML = `
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="font-bold text-sm text-slate-800">📅 ${title}</h3>
+            <div class="flex items-center gap-1">
+                ${mostrarHoy ? '<button onclick="calToday()" class="cal-nav !w-auto px-2 text-[10px] font-bold" title="Volver a hoy">Hoy</button>' : ''}
+                <button onclick="calMove(-1)" class="cal-nav" title="Mes anterior">‹</button>
+                <button onclick="calMove(1)" class="cal-nav" title="Mes siguiente">›</button>
+            </div>
+        </div>
+        <div class="cal-grid mb-1">${['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(d => `<span class="text-[10px] font-bold text-slate-400">${d}</span>`).join('')}</div>
+        <div class="cal-grid">${cells}</div>
+        <p class="text-[10px] text-slate-400 mt-2 text-center">Toca un día para ver su horario</p>`;
+}
+// --- Notas / pendientes (persistencia local por usuario) ---
+function notesKey() { return `siga_notas_${String(currentUser?.identificador || 'anon').toLowerCase()}`; }
+function getNotes() { try { return JSON.parse(localStorage.getItem(notesKey())) || []; } catch (_) { return []; } }
+function saveNotes(list) { localStorage.setItem(notesKey(), JSON.stringify(list)); }
+function renderNotesPanel() {
+    const el = document.getElementById('notesPanel');
+    if (!el) return;
+    const notes = getNotes();
+    const pendientes = notes.filter(n => !n.done).length;
+    el.innerHTML = `
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="font-bold text-sm text-slate-800">📝 Mis Pendientes</h3>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${pendientes ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}">${pendientes ? `${pendientes} por hacer` : 'Al día ✓'}</span>
+        </div>
+        <form onsubmit="addNote(event)" class="flex gap-2 mb-3">
+            <input id="noteInput" maxlength="140" required placeholder="Añadir nota o pendiente…" class="flex-1 min-w-0 px-3 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white">
+            <button class="btn-primary w-8 h-8 rounded-lg font-bold shrink-0 grid place-items-center" title="Agregar">+</button>
+        </form>
+        <div class="space-y-2 flex-1 overflow-y-auto pr-0.5">
+            ${notes.length ? notes.map((n, i) => `
+                <div class="note-item ${n.done ? 'note-done' : ''}">
+                    <input type="checkbox" ${n.done ? 'checked' : ''} onchange="toggleNote(${i})" title="Marcar como ${n.done ? 'pendiente' : 'hecha'}">
+                    <span class="note-text flex-1 min-w-0 break-words">${escapeHtml(n.texto)}<span class="block text-[10px] text-slate-400 mt-0.5">${escapeHtml(n.fecha || '')}</span></span>
+                    <button type="button" onclick="deleteNote(${i})" title="Eliminar nota">×</button>
+                </div>`).join('') : emptyState('🗒️', 'Sin notas aún.<br>¡Agrega tu primer pendiente!')}
+        </div>`;
+}
+function addNote(e) {
+    e.preventDefault();
+    const input = document.getElementById('noteInput');
+    const texto = input.value.trim();
+    if (!texto) return;
+    const notes = getNotes();
+    notes.unshift({ texto, done: false, fecha: new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'short' }) });
+    saveNotes(notes);
+    renderNotesPanel();
+    document.getElementById('noteInput')?.focus();
+}
+function toggleNote(i) { const n = getNotes(); if (!n[i]) return; n[i].done = !n[i].done; saveNotes(n); renderNotesPanel(); }
+function deleteNote(i) { const n = getNotes(); n.splice(i, 1); saveNotes(n); renderNotesPanel(); }
+
+// === HORARIO DEL DÍA (DEMO) ===
+// Se alimenta de MOCK_DB.bloques + horarios de ejemplo basados en la tabla Curso.
+function asigClass(nombre) {
+    const n = String(nombre).toLowerCase();
+    if (n.includes('matem')) return 'ha-blue';
+    if (n.includes('lengu')) return 'ha-purple';
+    if (n.includes('histor')) return 'ha-amber';
+    if (n.includes('cien')) return 'ha-emerald';
+    if (n.includes('ingl')) return 'ha-cyan';
+    if (n.includes('físic') || n.includes('fisic') || n.includes('deport')) return 'ha-orange';
+    if (n.includes('arte') || n.includes('mús') || n.includes('music')) return 'ha-pink';
+    if (n.includes('tecno')) return 'ha-teal';
+    const pal = ['ha-blue', 'ha-purple', 'ha-amber', 'ha-emerald', 'ha-cyan', 'ha-orange', 'ha-pink', 'ha-teal'];
+    let h = 0; for (const ch of n) h = (h * 31 + ch.charCodeAt(0)) % 997;
+    return pal[h % pal.length];
+}
+const HA_COLORS = { 'ha-blue': '#3b82f6', 'ha-purple': '#a855f7', 'ha-amber': '#f59e0b', 'ha-emerald': '#10b981', 'ha-cyan': '#06b6d4', 'ha-orange': '#f97316', 'ha-pink': '#ec4899', 'ha-teal': '#14b8a6' };
+function horarioWidget(delayClass = '') {
+    return `<div class="widget-card ${delayClass ? 'fade-up ' + delayClass : ''} mb-7">
+        <div class="widget-head">
+            <span class="w-icon bg-indigo-50">🗓️</span>
+            <div class="min-w-0"><h3>Horario del Día</h3><span id="horarioDiaFecha" class="block text-[11px] text-slate-400 font-medium truncate"></span></div>
+            <span class="ml-auto px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-500 text-[10px] font-bold shrink-0" title="Datos de demostración">Ejemplo</span>
+        </div>
+        <div class="widget-body relative max-h-[21rem] overflow-y-auto" id="horarioDiaBody"></div>
+    </div>`;
+}
+function updateHorarioWidgets() { if (document.getElementById('horarioDiaBody')) renderHorarioDia(); }
+async function renderHorarioDia(autoScroll = true) {
+    const body = document.getElementById('horarioDiaBody');
+    if (!body || !currentUser) return;
+    const label = document.getElementById('horarioDiaFecha');
+    let fecha = selectedDate.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
+    fecha = fecha.charAt(0).toUpperCase() + fecha.slice(1);
+    if (label) label.textContent = fecha;
+    const dow = selectedDate.getDay(); // 0=Dom … 6=Sáb
+    if (dow === 0 || dow === 6) {
+        body.innerHTML = emptyState('🏖️', 'Fin de semana: sin clases programadas.');
+        return;
+    }
+    const api = currentUser.rol === 'DOCENTE' ? DocenteApi : ApoderadoApi;
+    const { bloques, clases } = await api.horario(dow);
+    if (!bloques?.length) {
+        body.innerHTML = emptyState('🗓️', 'No hay bloques configurados para este día.');
+        return;
+    }
+    const now = new Date();
+    const esHoy = sameDay(selectedDate, now);
+    const mins = t => { const [h, mi] = t.split(':').map(Number); return h * 60 + mi; };
+    const nowM = now.getHours() * 60 + now.getMinutes();
+    const fin = bloques[bloques.length - 1].fin;
+    const primerInicio = mins(bloques[0].inicio);
+    const activeIndex = esHoy ? bloques.findIndex(b => nowM >= mins(b.inicio) && nowM < mins(b.fin)) : -1;
+    const scrollKey = !esHoy ? '' : activeIndex >= 0 ? `bloque-${activeIndex}` : nowM < primerInicio ? 'antes-jornada' : 'despues-jornada';
+    const shouldAutoScroll = autoScroll || scrollKey !== horarioScrollKey;
+    horarioScrollKey = scrollKey;
+
+    body.innerHTML = `<div class="hor-list">${bloques.map(b => {
+        const ini = mins(b.inicio), term = mins(b.fin);
+        const pasado = esHoy && nowM >= term;                       // bloque ya terminó hoy
+        const enCurso = esHoy && nowM >= ini && nowM < term;        // bloque en curso ahora
+        const progreso = enCurso ? Math.round(((nowM - ini) / (term - ini)) * 100) : 0;
+        const time = `<div class="hor-time"><b>${b.inicio}</b><span>${b.fin}</span></div>`;
+        const barra = enCurso ? `<div class="hor-progress" title="${progreso}% del bloque"><span style="width:${progreso}%"></span></div>` : '';
+        const badge = enCurso ? '<span class="hor-live">● AHORA</span>' : '';
+
+        if (b.tipo !== 'CLASE') {
+            return `<div class="hor-row${pasado ? ' hor-past' : ''}">${time}
+                <span class="hor-dot" style="border-color:#fbbf24"></span>
+                <div class="hor-card hc-break${enCurso ? ' hor-now' : ''}">
+                    <div class="flex items-center justify-between gap-2">
+                        <b>${b.tipo === 'ALMUERZO' ? '🍽️' : '☕'} ${b.nombre} · ${term - ini} min</b>
+                        ${badge}
+                    </div>
+                    ${barra}
+                </div>
+            </div>`;
+        }
+        const clase = clases.find(c => c.bloque === b.id);
+        if (!clase) {
+            return `<div class="hor-row${pasado ? ' hor-past' : ''}">${time}
+                <span class="hor-dot" style="border-color:#cbd5e1"></span>
+                <div class="hor-card hc-free${enCurso ? ' hor-now' : ''}">
+                    <div class="flex items-center justify-between gap-2">
+                        <b class="hc-title">Bloque libre</b>
+                        ${badge}
+                    </div>
+                    <span class="hc-sub">${currentUser.rol === 'DOCENTE' ? 'Planificación' : 'Sin clase'}</span>
+                    ${barra}
+                </div>
+            </div>`;
+        }
+        let titulo, sub;
+        if (currentUser.rol === 'DOCENTE') {
+            const curso = (cacheCursos || []).find(x => x.idCurso === clase.idCurso);
+            titulo = curso ? curso.asignatura : 'Clase';
+            sub = `${curso ? `${curso.nivel} ${curso.paralelo}` : ''} · ${clase.sala}`;
+        } else {
+            titulo = clase.asignatura;
+            sub = `${clase.docente} · ${clase.sala}`;
+        }
+        const color = asigClass(titulo);
+        return `<div class="hor-row${pasado ? ' hor-past' : ''}">${time}
+            <span class="hor-dot" style="border-color:${HA_COLORS[color] || '#94a3b8'}"></span>
+            <div class="hor-card ${color}${enCurso ? ' hor-now' : ''}">
+                <div class="flex items-center justify-between gap-2">
+                    <b class="hc-title">${escapeHtml(titulo)}</b>
+                    ${badge || `<span class="hc-time shrink-0">${pasado ? '✓' : ''}</span>`}
+                </div>
+                <span class="hc-sub">${escapeHtml(sub)}</span>
+                ${barra}
+            </div>
+        </div>`;
+    }).join('')}</div>`;
+
+    // Avanzar la vista según la hora actual (solo si el día seleccionado es hoy)
+    if (shouldAutoScroll && esHoy) {
+        const actual = body.querySelector('.hor-now');
+        if (actual) {
+            const fila = actual.closest('.hor-row');
+            const lista = body.querySelector('.hor-list');
+            body.scrollTop = Math.max((fila?.offsetTop ?? 0) + (lista?.offsetTop ?? 0) - 64, 0);
+        } else if (nowM >= mins(fin)) {
+            body.scrollTop = body.scrollHeight; // jornada terminada → final
+        } else {
+            body.scrollTop = 0; // aún no comienza → inicio
+        }
+    }
+}
+// El horario avanza solo: refresco cada minuto (progreso, bloques pasados y badge AHORA)
+setInterval(() => { if (document.getElementById('horarioDiaBody')) renderHorarioDia(false); }, 60000);
 async function doLogin() {
     const identificador = document.getElementById('loginUser').value.trim();
     const contrasena = document.getElementById('loginPass').value.trim();
@@ -99,6 +402,8 @@ async function initApp() {
     document.getElementById('currentDate').textContent = new Date().toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     if (currentUser.rol === 'DOCENTE') cacheCursos = await DocenteApi.cursos();
     if (currentUser.rol === 'ADMIN') cacheCursos = await AdminApi.cursos();
+    calRef = new Date();
+    selectedDate = new Date();
     buildNav();
     navigate('dashboard');
 }
@@ -120,11 +425,12 @@ function navigate(view) {
     currentView = view;
     document.querySelectorAll('[data-nav]').forEach(b => b.classList.toggle('nav-active', b.dataset.nav === view));
     closeSidebar();
+    updateRightPanel();
     render();
 }
 async function render() {
     const c = document.getElementById('content');
-    c.innerHTML = '<div class="flex items-center justify-center h-64"> <div class="animate-spin text-2xl text-indigo-600">⟳</div> </div>';
+    c.innerHTML = '<div class="flex flex-col items-center justify-center h-64 gap-3"><div class="w-10 h-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div><p class="text-sm text-slate-400">Cargando información…</p></div>';
     const key = `${currentUser.rol}_${currentView}`;
     const renderers = {
         ADMIN_dashboard: renderAdminDashboard, ADMIN_solicitudes: renderAdminSolicitudes, ADMIN_cursos: renderAdminCursos, ADMIN_docentes: renderAdminDocentes, ADMIN_estudiantes: renderAdminEstudiantes, ADMIN_apoderados: renderAdminApoderados, ADMIN_alertas: renderAdminAlertas,
@@ -140,7 +446,40 @@ async function renderAdminDashboard() {
     document.getElementById('pageTitle').textContent = 'Panel Administrativo';
     document.getElementById('pageSubtitle').textContent = 'Visión general del establecimiento';
     const d = await AdminApi.dashboard();
-    document.getElementById('content').innerHTML = `<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8"> ${statCard('👥', 'Total Alumnos', d.totalEstudiantes, 'bg-blue-500')} ${statCard('📚', 'Cursos Activos', d.totalCursos, 'bg-purple-500')} ${statCard('✅', 'Asistencia Hoy', d.asistenciasHoy, 'bg-emerald-500')} ${statCard('📝', 'Promedio Gral.', d.promedioGeneral, 'bg-orange-500')} </div> <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm"> <h3 class="font-bold text-gray-900 mb-4">Accesos Rápidos</h3> <div class="grid grid-cols-1 md:grid-cols-3 gap-3"> <button onclick="navigate('cursos')" class="p-4 bg-blue-50 hover:bg-blue-100/70 rounded-lg text-left border border-blue-100 transition"><div class="text-2xl mb-2">📚</div><div class="font-semibold text-sm text-blue-900">Gestión Cursos</div></button> <button onclick="navigate('estudiantes')" class="p-4 bg-purple-50 hover:bg-purple-100/70 rounded-lg text-left border border-purple-100 transition"><div class="text-2xl mb-2">👥</div><div class="font-semibold text-sm text-purple-900">Matrícula</div></button> <button onclick="navigate('alertas')" class="p-4 bg-amber-50 hover:bg-amber-100/70 rounded-lg text-left border border-amber-100 transition"><div class="text-2xl mb-2">⚠️</div><div class="font-semibold text-sm text-amber-900">Semáforo Riesgo</div></button> </div> </div>`;
+    const cursos = cacheCursos || [];
+    document.getElementById('content').innerHTML = `
+        ${dashHero('ADMIN', `${greeting()}, ${escapeHtml(firstName(currentUser.nombre))} 👋`, 'Este es el pulso del establecimiento: matrícula, cursos, asistencia y rendimiento en un solo lugar.')}
+        <div class="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-4 mb-7">
+            <div class="fade-up d-1">${statCard('👥', 'Total Alumnos', d.totalEstudiantes, 'bg-blue-500', 'Matrícula vigente')}</div>
+            <div class="fade-up d-2">${statCard('📚', 'Cursos Activos', d.totalCursos, 'bg-purple-500', 'Año escolar en curso')}</div>
+            <div class="fade-up d-3">${statCard('✅', 'Asistencia Hoy', d.asistenciasHoy, 'bg-emerald-500', 'Registros del día')}</div>
+            <div class="fade-up d-4">${statCard('📝', 'Promedio Gral.', d.promedioGeneral, 'bg-orange-500', 'Todas las asignaturas')}</div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="widget-card fade-up d-5 lg:col-span-2">
+                <div class="widget-head"><span class="w-icon bg-indigo-50">📚</span><h3>Cursos del establecimiento</h3><button onclick="navigate('cursos')" class="ml-auto text-xs font-bold text-indigo-600 hover:text-indigo-800 transition">Ver todos →</button></div>
+                <div class="widget-body space-y-2">
+                    ${cursos.length ? cursos.slice(0, 6).map(c => `
+                        <div class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-100 bg-slate-50/60 hover:bg-indigo-50/60 hover:border-indigo-100 transition cursor-pointer" onclick="navigate('cursos')">
+                            <span class="w-9 h-9 rounded-lg bg-white border border-slate-200 grid place-items-center text-base shrink-0">🏫</span>
+                            <span class="min-w-0 flex-1">
+                                <span class="block text-sm font-semibold text-slate-800 truncate">${escapeHtml(c.nombreCurso)}</span>
+                                <span class="block text-xs text-slate-400">${escapeHtml(c.nivel ?? '')} · Paralelo ${escapeHtml(c.paralelo ?? '-')} · ${escapeHtml(c.anioEscolar ?? '')}</span>
+                            </span>
+                            <span class="px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-bold shrink-0">${Number(c.totalEstudiantes ?? 0)} 👥</span>
+                        </div>`).join('') : emptyState('📭', 'Aún no hay cursos registrados.')}
+                </div>
+            </div>
+            <div class="widget-card fade-up d-6">
+                <div class="widget-head"><span class="w-icon bg-amber-50">⚡</span><h3>Accesos Rápidos</h3></div>
+                <div class="widget-body space-y-3">
+                    ${quickAction('cursos', '📚', 'bg-blue-50', 'Gestión Cursos', 'Cursos, docentes y alumnos')}
+                    ${quickAction('estudiantes', '👥', 'bg-purple-50', 'Matrícula', 'Administrar estudiantes')}
+                    ${quickAction('alertas', '⚠️', 'bg-amber-50', 'Semáforo Riesgo', 'Alertas académicas')}
+                    ${quickAction('solicitudes', '🕓', 'bg-emerald-50', 'Solicitudes', 'Cuentas por aprobar')}
+                </div>
+            </div>
+        </div>`;
 }
 
 async function renderAdminSolicitudes() {
@@ -1433,89 +1772,91 @@ async function renderDocenteDashboard() {
     const recentAsistencia = MOCK_DB.asistencia.slice(-5).reverse(); 
     
     document.getElementById('content').innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            ${statCard('👥', 'Mis Alumnos', d.totalEstudiantes, 'bg-blue-500')}
-            ${statCard('📚', 'Clases Activas', d.totalClases, 'bg-purple-500')}
-            
+        ${dashHero('DOCENTE', `${greeting()}, ${escapeHtml(firstName(currentUser.nombre))} 👋`, 'Revisa la actividad de tus cursos: asistencia, promedios, anotaciones y materiales de apoyo.')}
+        ${horarioWidget('d-1')}
+        <div class="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-4 mb-7">
+            <div class="fade-up d-1">${statCard('👥', 'Mis Alumnos', d.totalEstudiantes, 'bg-blue-500', 'En todos tus cursos')}</div>
+            <div class="fade-up d-2">${statCard('📚', 'Clases Activas', d.totalClases, 'bg-purple-500', 'Asignaturas a cargo')}</div>
+
             <!-- Asistencia Hoy con Selector -->
-            <div class="bg-white rounded-xl shadow-sm p-5 flex flex-col stat-card border border-gray-200">
+            <div class="bg-white rounded-2xl p-5 flex flex-col stat-card fade-up d-3">
                 <div class="flex items-center gap-4 mb-3">
-                    <div class="w-12 h-12 bg-emerald-500 text-white rounded-lg flex items-center justify-center text-2xl shadow-lg">✅</div>
+                    <div class="w-12 h-12 bg-emerald-500 text-white rounded-xl flex items-center justify-center text-2xl shrink-0">✅</div>
                     <div>
-                        <div class="text-xs text-slate-500 uppercase tracking-wide font-semibold">Asistencia Hoy</div>
-                        <div class="text-2xl font-bold text-slate-900" id="attHoyValor">0%</div>
+                        <div class="text-[11px] text-slate-400 uppercase tracking-wider font-bold">Asistencia Hoy</div>
+                        <div class="text-2xl font-extrabold text-slate-900" id="attHoyValor">0%</div>
                     </div>
                 </div>
-                <select id="selectCursoAsistencia" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:border-emerald-500 outline-none bg-white">
+                <select id="selectCursoAsistencia" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:border-emerald-500 outline-none bg-white relative z-10">
                     <option value="">Seleccione curso...</option>
                     ${cursos.map(c => `<option value="${c.idCurso}">${c.nombreCurso}</option>`).join('')}
                 </select>
+                <span class="stat-glow bg-emerald-500"></span>
             </div>
-            
+
             <!-- Promedio Cursos con Selector -->
-            <div class="bg-white rounded-xl shadow-sm p-5 flex flex-col stat-card border border-gray-200">
+            <div class="bg-white rounded-2xl p-5 flex flex-col stat-card fade-up d-4">
                 <div class="flex items-center gap-4 mb-3">
-                    <div class="w-12 h-12 bg-orange-500 text-white rounded-lg flex items-center justify-center text-2xl shadow-lg">📝</div>
+                    <div class="w-12 h-12 bg-orange-500 text-white rounded-xl flex items-center justify-center text-2xl shrink-0">📝</div>
                     <div>
-                        <div class="text-xs text-slate-500 uppercase tracking-wide font-semibold">Promedio Curso</div>
-                        <div class="text-2xl font-bold text-slate-900" id="promCursoValor">0.0</div>
+                        <div class="text-[11px] text-slate-400 uppercase tracking-wider font-bold">Promedio Curso</div>
+                        <div class="text-2xl font-extrabold text-slate-900" id="promCursoValor">0.0</div>
                     </div>
                 </div>
-                <select id="selectCursoPromedio" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:border-orange-500 outline-none bg-white">
+                <select id="selectCursoPromedio" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:border-orange-500 outline-none bg-white relative z-10">
                     <option value="">Seleccione curso...</option>
                     ${cursos.map(c => `<option value="${c.idCurso}">${c.nombreCurso}</option>`).join('')}
                 </select>
+                <span class="stat-glow bg-orange-500"></span>
             </div>
         </div>
-        
+
         <!-- Resumen de Actividad Académica -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-                <h3 class="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <span>📋</span> Últimas Anotaciones Registradas
-                </h3>
-                <div class="space-y-2">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-7">
+            <div class="widget-card fade-up d-5">
+                <div class="widget-head"><span class="w-icon bg-rose-50">📋</span><h3>Últimas Anotaciones Registradas</h3><button onclick="navigate('anotaciones')" class="ml-auto text-xs font-bold text-indigo-600 hover:text-indigo-800 transition">Ver todas →</button></div>
+                <div class="widget-body space-y-2">
                     ${recentAnotaciones.length ? recentAnotaciones.slice(0, 4).map(a => {
                         const isPos = (a.tipoAnotacion || a.tipo || '').toUpperCase() === 'POSITIVA';
-                        return `<div class="p-3 rounded-lg border text-xs ${isPos ? 'bg-emerald-50/50 border-emerald-100 text-slate-700' : 'bg-rose-50/50 border-rose-100 text-slate-700'}">
-                            <div class="flex justify-between font-bold mb-1">
-                                <span>${a.nombreEstudiante}</span>
-                                <span>${a.fechaRegistro}</span>
+                        return `<div class="p-3 rounded-xl border text-xs ${isPos ? 'bg-emerald-50/60 border-emerald-100' : 'bg-rose-50/60 border-rose-100'}">
+                            <div class="flex justify-between items-center gap-2 mb-1">
+                                <span class="font-bold text-slate-800">${isPos ? '🟢' : '🔴'} ${escapeHtml(a.nombreEstudiante)}</span>
+                                <span class="text-[11px] text-slate-400 font-semibold shrink-0">${escapeHtml(a.fechaRegistro)}</span>
                             </div>
-                            <p class="text-gray-600">${a.detalles || a.observacion}</p>
+                            <p class="text-slate-600 leading-relaxed">${escapeHtml(a.detalles || a.observacion)}</p>
                         </div>`;
-                    }).join('') : '<p class="text-sm text-gray-400 italic py-4">Sin anotaciones recientes.</p>'}
+                    }).join('') : emptyState('📭', 'Sin anotaciones recientes.')}
                 </div>
             </div>
-            <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-                <h3 class="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <span>✅</span> Registro de Asistencia Reciente
-                </h3>
-                <div class="space-y-2">
+            <div class="widget-card fade-up d-6">
+                <div class="widget-head"><span class="w-icon bg-emerald-50">✅</span><h3>Registro de Asistencia Reciente</h3><button onclick="navigate('attendance')" class="ml-auto text-xs font-bold text-indigo-600 hover:text-indigo-800 transition">Ir a asistencia →</button></div>
+                <div class="widget-body space-y-2">
                     ${recentAsistencia.length ? recentAsistencia.map(a => {
                         const est = MOCK_DB.estudiantes.find(e => e.idEstudiante === a.idEstudiante);
                         const nombre = est ? est.nombre : 'Alumno';
                         const color = a.estado === 'PRESENTE' ? 'bg-emerald-100 text-emerald-800' : a.estado === 'AUSENTE' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800';
-                        return `<div class="flex justify-between items-center text-sm p-2 bg-slate-50 border border-slate-100 rounded-lg">
-                            <span class="font-medium text-gray-700">${nombre} <span class="text-xs text-gray-400">(${a.fecha})</span></span>
-                            <span class="chip px-2 py-0.5 rounded text-xs font-bold ${color}">${a.estado}</span>
+                        return `<div class="flex justify-between items-center gap-2 text-sm p-2.5 bg-slate-50/70 border border-slate-100 rounded-xl">
+                            <span class="font-medium text-slate-700 truncate">${escapeHtml(nombre)} <span class="text-xs text-slate-400">(${escapeHtml(a.fecha)})</span></span>
+                            <span class="chip px-2.5 py-0.5 rounded-full text-xs font-bold shrink-0 ${color}">${escapeHtml(a.estado)}</span>
                         </div>`;
-                    }).join('') : '<p class="text-sm text-gray-400 italic py-4">No hay registros de asistencia recientes. ¡Toma asistencia hoy!</p>'}
+                    }).join('') : emptyState('🗓️', 'No hay registros recientes. ¡Toma asistencia hoy!')}
                 </div>
             </div>
         </div>
-        
-        <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-            <h3 class="font-bold text-gray-900 mb-4">Accesos Rápidos</h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <button onclick="navigate('attendance')" class="p-4 bg-white border border-gray-200 hover:border-indigo-500 rounded-xl text-left transition shadow-sm hover:shadow-md"><div class="text-2xl mb-2">✅</div><div class="font-bold text-sm text-slate-800">Tomar Asistencia</div></button>
-                <button onclick="navigate('grades')" class="p-4 bg-white border border-gray-200 hover:border-indigo-500 rounded-xl text-left transition shadow-sm hover:shadow-md"><div class="text-2xl mb-2">📝</div><div class="font-bold text-sm text-slate-800">Registrar Nota</div></button>
-                <button onclick="navigate('materials')" class="p-4 bg-white border border-gray-200 hover:border-indigo-500 rounded-xl text-left transition shadow-sm hover:shadow-md"><div class="text-2xl mb-2">📚</div><div class="font-bold text-sm text-slate-800">Subir Recurso</div></button>
-                <button onclick="navigate('anotaciones')" class="p-4 bg-white border border-gray-200 hover:border-indigo-500 rounded-xl text-left transition shadow-sm hover:shadow-md"><div class="text-2xl mb-2">📋</div><div class="font-bold text-sm text-slate-800">Anotaciones</div></button>
+
+        <div class="widget-card fade-up d-6">
+            <div class="widget-head"><span class="w-icon bg-amber-50">⚡</span><h3>Accesos Rápidos</h3></div>
+            <div class="widget-body grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-3">
+                ${quickAction('attendance', '✅', 'bg-emerald-50', 'Tomar Asistencia', 'Registro diario por curso')}
+                ${quickAction('grades', '📝', 'bg-blue-50', 'Registrar Nota', 'Calificaciones por evaluación')}
+                ${quickAction('materials', '📚', 'bg-purple-50', 'Subir Recurso', 'Materiales para tus cursos')}
+                ${quickAction('anotaciones', '📋', 'bg-rose-50', 'Anotaciones', 'Observaciones de conducta')}
             </div>
         </div>
     `;
     
+    renderHorarioDia();
+
     // Agregar event listeners a los selectores
     setTimeout(() => {
         const selectAtt = document.getElementById('selectCursoAsistencia');
@@ -2114,54 +2455,60 @@ async function renderApoderadoDashboard() {
     document.getElementById('pageSubtitle').textContent = `Curso actual: ${d.curso} · Rendimiento Promedio: ${d.promedio}`;
     
     document.getElementById('content').innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"> 
-            ${statCard('👨‍🎓', 'Pupilo Matriculado', d.nombrePupilo, 'bg-blue-500')} 
-            ${statCard('🏫', 'Curso Asignado', d.curso, 'bg-purple-500')} 
-            ${statCard('📈', 'Promedio General', d.promedio, 'bg-orange-500')} 
-        </div> 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6"> 
-            <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-                <h3 class="font-bold text-gray-900 mb-4 flex items-center space-x-2"><span>✅</span> Resumen Asistencia</h3>
-                <div id="apoderadoAttWidget"></div>
-            </div> 
-            <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-                <h3 class="font-bold text-gray-900 mb-4 flex items-center space-x-2"><span>📝</span> Últimas Calificaciones</h3>
-                <div id="apoderadoGradesWidget"></div>
-            </div> 
-            <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-                <h3 class="font-bold text-gray-900 mb-4 flex items-center space-x-2"><span>📋</span> Últimas Observaciones</h3>
-                <div id="apoderadoAnWidget"></div>
-            </div> 
+        ${dashHero('APODERADO', `${greeting()}, ${escapeHtml(firstName(currentUser.nombre))} 👋`, `Sigue de cerca el progreso académico de <b class="text-white">${escapeHtml(d.nombrePupilo)}</b>: asistencia, calificaciones y observaciones al día.`)}
+        ${horarioWidget('d-1')}
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-7">
+            <div class="fade-up d-1">${statCard('👨‍🎓', 'Pupilo Matriculado', d.nombrePupilo, 'bg-blue-500', 'Estudiante a tu cargo')}</div>
+            <div class="fade-up d-2">${statCard('🏫', 'Curso Asignado', d.curso, 'bg-purple-500', 'Año escolar en curso')}</div>
+            <div class="fade-up d-3">${statCard('📈', 'Promedio General', d.promedio, 'bg-orange-500', 'Todas las asignaturas')}</div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="widget-card fade-up d-4">
+                <div class="widget-head"><span class="w-icon bg-emerald-50">✅</span><h3>Resumen Asistencia</h3><button onclick="navigate('attendance')" class="ml-auto text-xs font-bold text-indigo-600 hover:text-indigo-800 transition">Ver →</button></div>
+                <div class="widget-body" id="apoderadoAttWidget"></div>
+            </div>
+            <div class="widget-card fade-up d-5">
+                <div class="widget-head"><span class="w-icon bg-blue-50">📝</span><h3>Últimas Calificaciones</h3><button onclick="navigate('grades')" class="ml-auto text-xs font-bold text-indigo-600 hover:text-indigo-800 transition">Ver →</button></div>
+                <div class="widget-body" id="apoderadoGradesWidget"></div>
+            </div>
+            <div class="widget-card fade-up d-6">
+                <div class="widget-head"><span class="w-icon bg-rose-50">📋</span><h3>Últimas Observaciones</h3><button onclick="navigate('anotaciones')" class="ml-auto text-xs font-bold text-indigo-600 hover:text-indigo-800 transition">Ver →</button></div>
+                <div class="widget-body" id="apoderadoAnWidget"></div>
+            </div>
         </div>`;
+
+    renderHorarioDia();
 
     // Cargar Asistencia
     const att = await ApoderadoApi.asistencia();
-    document.getElementById('apoderadoAttWidget').innerHTML = `<div class="space-y-2">${att.slice(0,4).map(a =>
-        `<div class="flex justify-between items-center text-sm p-2 bg-slate-50 border border-slate-100 rounded-lg"> 
-            <span class="font-medium text-gray-700">${a.fecha}</span> 
-            <span class="chip px-2 py-0.5 rounded text-xs font-bold ${a.estado==='PRESENTE'?'bg-emerald-100 text-emerald-800':'bg-rose-100 text-rose-800'}">${a.estado}</span> 
-        </div>`).join('')}</div>`;
+    document.getElementById('apoderadoAttWidget').innerHTML = att.length ? `<div class="space-y-2">${att.slice(0,4).map(a =>
+        `<div class="flex justify-between items-center gap-2 text-sm p-2.5 bg-slate-50/70 border border-slate-100 rounded-xl">
+            <span class="font-medium text-slate-700">🗓️ ${escapeHtml(a.fecha)}</span>
+            <span class="chip px-2.5 py-0.5 rounded-full text-xs font-bold shrink-0 ${a.estado==='PRESENTE'?'bg-emerald-100 text-emerald-800':'bg-rose-100 text-rose-800'}">${escapeHtml(a.estado)}</span>
+        </div>`).join('')}</div>` : emptyState('🗓️', 'Sin registros de asistencia.');
 
-    // ✅ Cargar Calificaciones (NUEVO WIDGET)
+    // Cargar Calificaciones
     const grades = await ApoderadoApi.calificaciones();
-    document.getElementById('apoderadoGradesWidget').innerHTML = grades.length ? `<div class="space-y-2">${grades.slice(0,4).map(g => { 
-        const n = parseFloat(g.nota); 
-        return `<div class="flex justify-between items-center text-sm p-2 bg-slate-50 border border-slate-100 rounded-lg"> 
-            <span class="font-medium text-gray-700">${g.nombreCurso || g.asignatura || 'S/D'}</span> 
-            <span class="chip px-2 py-0.5 rounded text-xs font-bold ${n>=4?'bg-emerald-100 text-emerald-800':'bg-rose-100 text-rose-800'}">${n.toFixed(1)}</span> 
-        </div>`; 
-    }).join('')}</div>` : '<p class="text-sm text-gray-400 italic py-4">Sin calificaciones recientes.</p>';
+    document.getElementById('apoderadoGradesWidget').innerHTML = grades.length ? `<div class="space-y-2">${grades.slice(0,4).map(g => {
+        const n = parseFloat(g.nota);
+        return `<div class="flex justify-between items-center gap-2 text-sm p-2.5 bg-slate-50/70 border border-slate-100 rounded-xl">
+            <span class="font-medium text-slate-700 truncate">${escapeHtml(g.nombreCurso || g.asignatura || 'S/D')}</span>
+            <span class="chip px-2.5 py-0.5 rounded-full text-xs font-bold shrink-0 ${n>=4?'bg-emerald-100 text-emerald-800':'bg-rose-100 text-rose-800'}">${n.toFixed(1)}</span>
+        </div>`;
+    }).join('')}</div>` : emptyState('📭', 'Sin calificaciones recientes.');
 
     // Cargar Anotaciones
     const an = await ApoderadoApi.anotaciones();
-    document.getElementById('apoderadoAnWidget').innerHTML = an.length ? `<div class="space-y-2">${an.slice(0,3).map(a =>
-        `<div class="p-3 rounded-lg border text-xs ${(a.tipoAnotacion || a.tipo)==='POSITIVA'?'bg-emerald-50/50 border-emerald-100 text-slate-700':'bg-rose-50/50 border-rose-100 text-slate-700'}"> 
-            <div class="flex justify-between font-bold mb-1"> 
-                <span>Anotación ${a.tipoAnotacion || a.tipo}</span> 
-                <span>${a.fechaRegistro}</span> 
-            </div> 
-            <p class="text-gray-600">${a.detalles || a.observacion}</p> 
-        </div>`).join('')}</div>` : '<div class="text-sm text-gray-400 italic py-4">Sin anotaciones registradas en el período.</div>';
+    document.getElementById('apoderadoAnWidget').innerHTML = an.length ? `<div class="space-y-2">${an.slice(0,3).map(a => {
+        const isPos = (a.tipoAnotacion || a.tipo) === 'POSITIVA';
+        return `<div class="p-3 rounded-xl border text-xs ${isPos?'bg-emerald-50/60 border-emerald-100':'bg-rose-50/60 border-rose-100'}">
+            <div class="flex justify-between items-center gap-2 mb-1">
+                <span class="font-bold text-slate-800">${isPos ? '🟢' : '🔴'} Anotación ${escapeHtml(a.tipoAnotacion || a.tipo)}</span>
+                <span class="text-[11px] text-slate-400 font-semibold shrink-0">${escapeHtml(a.fechaRegistro)}</span>
+            </div>
+            <p class="text-slate-600 leading-relaxed">${escapeHtml(a.detalles || a.observacion)}</p>
+        </div>`;
+    }).join('')}</div>` : emptyState('📭', 'Sin anotaciones registradas en el período.');
 }
 async function renderApoderadoAttendance() {
     document.getElementById('pageTitle').textContent = 'Registro Histórico de Asistencia';
