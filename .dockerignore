@@ -1,0 +1,5 @@
+**/bin
+**/obj
+**/.DS_Store
+db/SigaApi-Backend.zip
+.git
