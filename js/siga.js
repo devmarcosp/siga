@@ -1889,6 +1889,15 @@ async function renderDocenteDashboard() {
 async function renderDocenteAttendance() {
     document.getElementById('pageTitle').textContent = 'Control de Asistencia';
     const cursos = cacheCursos;
+    if (!cursos.length) {
+        document.getElementById('content').innerHTML = `
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-8 text-center shadow-sm">
+                <div class="text-4xl mb-3">📚</div>
+                <h3 class="font-bold text-amber-900 mb-2">Aún no tienes cursos asignados</h3>
+                <p class="text-sm text-amber-800">Solicita al administrador que ingrese a Docentes → Editar y te asigne al menos un curso. Los alumnos matriculados en ese curso aparecerán automáticamente aquí.</p>
+            </div>`;
+        return;
+    }
     document.getElementById('content').innerHTML = `
         <div class="bg-white rounded-xl border border-gray-200 p-6 mb-6 shadow-sm"> 
             <div class="flex flex-wrap items-end gap-4"> 
@@ -2856,7 +2865,7 @@ async function abrirModalCrearDocente() {
     const checkboxesCursos = cursos.map(c => `
         <label class="flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-lg cursor-pointer border border-gray-100 transition">
             <input type="checkbox" name="cursosSeleccionados" value="${c.idCurso}" class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
-            <span class="text-sm text-slate-700 font-medium">${c.nombreCurso} <span class="text-xs text-gray-400">(${c.nivel})</span></span>
+            <span class="text-sm text-slate-700 font-medium">${escapeHtml(c.nombreCurso)} <span class="text-xs text-gray-400">· ${c.totalEstudiantes || 0} alumnos</span></span>
         </label>
     `).join('');
 
@@ -2875,6 +2884,11 @@ async function abrirModalCrearDocente() {
                 </div>
 
                 <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase tracking-wide mb-1">RUT</label>
+                    <input type="text" id="regRut" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" placeholder="12.345.678-9">
+                </div>
+
+                <div>
                     <label class="block text-xs font-bold text-slate-600 uppercase tracking-wide mb-1">Correo Electrónico (Usuario de Acceso)</label>
                     <input type="email" id="regEmail" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" placeholder="ejemplo@upla.cl">
                 </div>
@@ -2882,6 +2896,11 @@ async function abrirModalCrearDocente() {
                 <div>
                     <label class="block text-xs font-bold text-slate-600 uppercase tracking-wide mb-1">Contraseña de Ingreso</label>
                     <input type="password" id="regContrasena" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" placeholder="Establece una contraseña segura">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase tracking-wide mb-1">Especialidad</label>
+                    <input type="text" id="regEspecialidad" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" placeholder="Ej. Matemáticas">
                 </div>
 
                 <div>
@@ -2910,19 +2929,27 @@ async function guardarNuevoDocente(event) {
     event.preventDefault(); // Evitamos que la página se recargue
 
     const nombre = document.getElementById('regNombre').value.trim();
+    const rut = document.getElementById('regRut').value.trim();
     const identificador = document.getElementById('regEmail').value.trim();
     const contrasena = document.getElementById('regContrasena').value;
+    const especialidad = document.getElementById('regEspecialidad').value.trim();
 
     // Recopilamos todas las checkboxes de cursos que hayan sido seleccionadas
     const checkboxes = document.querySelectorAll('input[name="cursosSeleccionados"]:checked');
     const cursosAsignados = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    if (!cursosAsignados.length) {
+        toast('Selecciona al menos un curso para habilitar el acceso académico del docente');
+        return;
+    }
 
     try {
         // Ejecutamos el guardado en nuestra API simulada
         await AdminApi.agregarDocente({
             nombre,
+            rut,
             identificador,
             contrasena,
+            especialidad,
             cursosAsignados
         });
 
@@ -3131,7 +3158,7 @@ async function openEditDocenteModal(idDocente) {
                         return `
                         <label class="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" name="editDocCursos" value="${c.idCurso}" ${isChecked} class="text-indigo-600 border-gray-300 rounded"/>
-                            <span class="text-sm text-gray-700">${escapeHtml(c.nombreCurso)}</span>
+                            <span class="text-sm text-gray-700">${escapeHtml(c.nombreCurso)} <span class="text-xs text-gray-400">· ${c.totalEstudiantes || 0} alumnos</span></span>
                         </label>`;
                     }).join('')}
                 </div>

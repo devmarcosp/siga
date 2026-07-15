@@ -141,26 +141,37 @@ public class AdminController(SigaDbContext db) : ControllerBase
     [HttpPost("docentes")]
     public async Task<IActionResult> CrearDocente(NuevoDocenteDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.Rut) || string.IsNullOrWhiteSpace(dto.Nombre) ||
+            string.IsNullOrWhiteSpace(dto.Identificador) || string.IsNullOrWhiteSpace(dto.Contrasena))
+            return BadRequest(new { mensaje = "RUT, nombre, correo y contraseña son obligatorios." });
+        if (dto.CursosAsignados == null || dto.CursosAsignados.Count == 0)
+            return BadRequest(new { mensaje = "Debes asignar al menos un curso al docente." });
         if (await db.Docentes.AnyAsync(d => d.Correo == dto.Identificador))
             return BadRequest(new { mensaje = "El correo electronico ya se encuentra registrado." });
+        if (await db.Docentes.AnyAsync(d => d.Rut == dto.Rut.Trim()))
+            return BadRequest(new { mensaje = "El RUT ya se encuentra registrado." });
+
+        var cursosSolicitados = dto.CursosAsignados.Distinct().ToList();
+        var cantidadCursosValidos = await db.Cursos.CountAsync(c => c.Activo && cursosSolicitados.Contains(c.IdCurso));
+        if (cantidadCursosValidos != cursosSolicitados.Count)
+            return BadRequest(new { mensaje = "Uno o mas cursos seleccionados no existen o estan inactivos." });
 
         var docente = new Docente
         {
-            Rut = dto.Rut,
-            Nombre = dto.Nombre,
-            Correo = dto.Identificador,
+            Rut = dto.Rut.Trim(),
+            Nombre = dto.Nombre.Trim(),
+            Correo = dto.Identificador.Trim(),
             ContrasenaHash = BCrypt.Net.BCrypt.HashPassword(dto.Contrasena),
-            Especialidad = dto.Especialidad
+            Especialidad = string.IsNullOrWhiteSpace(dto.Especialidad) ? null : dto.Especialidad.Trim()
         };
         db.Docentes.Add(docente);
         await db.SaveChangesAsync();
 
-        if (dto.CursosAsignados != null)
+        foreach (var idCurso in cursosSolicitados)
         {
-            foreach (var idCurso in dto.CursosAsignados)
-                db.DocenteCursos.Add(new DocenteCurso { IdDocente = docente.IdDocente, IdCurso = idCurso });
-            await db.SaveChangesAsync();
+            db.DocenteCursos.Add(new DocenteCurso { IdDocente = docente.IdDocente, IdCurso = idCurso });
         }
+        await db.SaveChangesAsync();
         return Ok(true);
     }
 
