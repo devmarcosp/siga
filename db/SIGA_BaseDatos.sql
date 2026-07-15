@@ -1,18 +1,10 @@
 /* =====================================================================
    SIGA - Sistema Integrado de Gestion Academica
-   Script de creacion de base de datos - SQL Server (instancia local)
+   Script de inicializacion de esquema - SQL Server / Azure SQL
+   Ejecutar conectado directamente a la base de datos SIGA.
    Normalizado a 3FN. Sin tabla "Usuario" generica: cada rol guarda
    sus propias credenciales (correo + hash de contrasena).
    ===================================================================== */
-
-IF DB_ID('SIGA') IS NULL
-BEGIN
-    CREATE DATABASE SIGA;
-END
-GO
-
-USE SIGA;
-GO
 
 /* =====================================================================
    1. ROLES CON LOGIN PROPIO (sin tabla puente "Usuario")
