@@ -125,6 +125,7 @@ public class AdminController(SigaDbContext db) : ControllerBase
         var resultado = docentes.Select(d => new
         {
             d.IdDocente,
+            d.Rut,
             d.Nombre,
             identificador = d.Correo,
             d.Especialidad,
@@ -135,6 +136,7 @@ public class AdminController(SigaDbContext db) : ControllerBase
     }
 
     public record NuevoDocenteDto(string Rut, string Nombre, string Identificador, string Contrasena, string? Especialidad, List<int>? CursosAsignados);
+    public record EditarDocenteDto(string Rut, string Nombre, string Identificador, string? Contrasena, string? Especialidad, List<int>? CursosAsignados);
 
     [HttpPost("docentes")]
     public async Task<IActionResult> CrearDocente(NuevoDocenteDto dto)
@@ -159,6 +161,45 @@ public class AdminController(SigaDbContext db) : ControllerBase
                 db.DocenteCursos.Add(new DocenteCurso { IdDocente = docente.IdDocente, IdCurso = idCurso });
             await db.SaveChangesAsync();
         }
+        return Ok(true);
+    }
+
+    [HttpPut("docentes/{id}")]
+    public async Task<IActionResult> EditarDocente(int id, EditarDocenteDto dto)
+    {
+        var docente = await db.Docentes.FindAsync(id);
+        if (docente == null || !docente.Activo)
+            return NotFound(new { mensaje = "Docente no encontrado." });
+
+        var correo = dto.Identificador.Trim();
+        var rut = dto.Rut.Trim();
+        if (await db.Docentes.AnyAsync(d => d.IdDocente != id && d.Correo == correo))
+            return BadRequest(new { mensaje = "El correo electronico ya se encuentra registrado." });
+        if (!string.IsNullOrWhiteSpace(rut) && await db.Docentes.AnyAsync(d => d.IdDocente != id && d.Rut == rut))
+            return BadRequest(new { mensaje = "El RUT ya se encuentra registrado." });
+
+        docente.Rut = rut;
+        docente.Nombre = dto.Nombre.Trim();
+        docente.Correo = correo;
+        docente.Especialidad = string.IsNullOrWhiteSpace(dto.Especialidad) ? null : dto.Especialidad.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Contrasena))
+            docente.ContrasenaHash = BCrypt.Net.BCrypt.HashPassword(dto.Contrasena);
+
+        var cursosSolicitados = (dto.CursosAsignados ?? []).Distinct().ToHashSet();
+        var cursosValidos = await db.Cursos
+            .Where(c => c.Activo && cursosSolicitados.Contains(c.IdCurso))
+            .Select(c => c.IdCurso)
+            .ToListAsync();
+        if (cursosValidos.Count != cursosSolicitados.Count)
+            return BadRequest(new { mensaje = "Uno o mas cursos seleccionados no existen o estan inactivos." });
+
+        var asignacionesActuales = await db.DocenteCursos.Where(dc => dc.IdDocente == id).ToListAsync();
+        db.DocenteCursos.RemoveRange(asignacionesActuales.Where(dc => !cursosSolicitados.Contains(dc.IdCurso)));
+        var idsActuales = asignacionesActuales.Select(dc => dc.IdCurso).ToHashSet();
+        foreach (var idCurso in cursosSolicitados.Where(idCurso => !idsActuales.Contains(idCurso)))
+            db.DocenteCursos.Add(new DocenteCurso { IdDocente = id, IdCurso = idCurso });
+
+        await db.SaveChangesAsync();
         return Ok(true);
     }
 

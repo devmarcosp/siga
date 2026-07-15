@@ -2817,7 +2817,7 @@ async function renderAdminDocentes() {
                     <td class="p-4 text-slate-500 font-mono text-xs">${d.identificador}</td>
                     <td class="p-4">${chipsCursos}</td>
                     <td class="p-4 text-center space-x-3">
-                        <button onclick="openEditDocenteModal('${d.identificador}')" 
+                        <button onclick="openEditDocenteModal(${d.idDocente})"
                                 class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition">
                             ✏️ Editar
                         </button>
@@ -3085,38 +3085,53 @@ async function deleteStudent(idEstudiante) {
 }
 
 // --- DOCENTES ---
-async function openEditDocenteModal(identificador) {
-    const docente = MOCK_DB.users.find(u => u.rol === 'DOCENTE' && u.identificador === identificador);
-    if (!docente) return;
+async function openEditDocenteModal(idDocente) {
+    const [docentes, cursos] = await Promise.all([
+        AdminApi.obtenerDocentes(),
+        AdminApi.obtenerCursos()
+    ]);
+    const docente = docentes.find(d => d.idDocente === idDocente);
+    if (!docente) {
+        toast('No fue posible encontrar al docente seleccionado');
+        return;
+    }
     const m = document.getElementById('modal');
     document.getElementById('modalContent').innerHTML = `
         <div class="p-6 border-b border-gray-100 flex justify-between items-center">
             <h3 class="font-bold text-gray-900 text-lg">Editar Docente</h3>
             <button onclick="closeModal()" class="text-gray-400 text-xl hover:text-gray-600">&times;</button>
         </div>
-        <form onsubmit="saveEditedDocente(event, '${identificador}')" class="p-6 space-y-4">
+        <form onsubmit="saveEditedDocente(event, ${idDocente})" class="p-6 space-y-4">
             <div>
                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre Completo</label>
-                <input type="text" id="editDocNombre" required value="${docente.nombre}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
+                <input type="text" id="editDocNombre" required value="${escapeHtml(docente.nombre)}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">RUT</label>
+                <input type="text" id="editDocRut" required value="${escapeHtml(docente.rut || '')}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
             </div>
             <div>
                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Correo Electrónico (Usuario de Acceso)</label>
-                <input type="email" id="editDocCorreo" required value="${docente.identificador}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
+                <input type="email" id="editDocCorreo" required value="${escapeHtml(docente.identificador)}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
             </div>
             <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Contraseña de Ingreso</label>
-                <input type="text" id="editDocContrasena" required value="${docente.contrasena}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
-                <p class="text-xs text-gray-400 mt-1">El docente podrá cambiarla después de iniciar sesión</p>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Especialidad</label>
+                <input type="text" id="editDocEspecialidad" value="${escapeHtml(docente.especialidad || '')}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nueva contraseña</label>
+                <input type="password" id="editDocContrasena" autocomplete="new-password" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
+                <p class="text-xs text-gray-400 mt-1">Déjala vacía para conservar la contraseña actual.</p>
             </div>
             <div>
                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Cursos Asignados</label>
                 <div class="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-slate-50">
-                    ${MOCK_DB.cursos.map(c => {
+                    ${cursos.map(c => {
                         const isChecked = docente.cursosAsignados && docente.cursosAsignados.includes(c.idCurso) ? 'checked' : '';
                         return `
                         <label class="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" name="editDocCursos" value="${c.idCurso}" ${isChecked} class="text-indigo-600 border-gray-300 rounded"/>
-                            <span class="text-sm text-gray-700">${c.nombreCurso}</span>
+                            <span class="text-sm text-gray-700">${escapeHtml(c.nombreCurso)}</span>
                         </label>`;
                     }).join('')}
                 </div>
@@ -3130,28 +3145,25 @@ async function openEditDocenteModal(identificador) {
     m.classList.remove('hidden');
 }
 
-async function saveEditedDocente(e, identificadorOriginal) {
+async function saveEditedDocente(e, idDocente) {
     e.preventDefault();
     const checkboxes = document.querySelectorAll('input[name="editDocCursos"]:checked');
     const nuevosCursos = Array.from(checkboxes).map(cb => parseInt(cb.value));
-    const nuevoCorreo = document.getElementById('editDocCorreo').value.trim();
-    const nuevaContrasena = document.getElementById('editDocContrasena').value.trim();
-    
-    // Validar que el nuevo correo no exista (si es diferente al original)
-    if (nuevoCorreo !== identificadorOriginal && MOCK_DB.users.find(u => u.identificador === nuevoCorreo)) {
-        toast('❌ Ya existe un usuario con ese correo');
-        return;
+    try {
+        await AdminApi.editarDocente(idDocente, {
+            rut: document.getElementById('editDocRut').value.trim(),
+            nombre: document.getElementById('editDocNombre').value.trim(),
+            identificador: document.getElementById('editDocCorreo').value.trim(),
+            especialidad: document.getElementById('editDocEspecialidad').value.trim(),
+            contrasena: document.getElementById('editDocContrasena').value,
+            cursosAsignados: nuevosCursos
+        });
+        closeModal();
+        toast('✅ Docente actualizado');
+        await renderAdminDocentes();
+    } catch (error) {
+        toast(error.message || 'No fue posible actualizar al docente');
     }
-    
-    await AdminApi.editarDocente(identificadorOriginal, {
-        nombre: document.getElementById('editDocNombre').value,
-        identificador: nuevoCorreo,
-        contrasena: nuevaContrasena,
-        cursosAsignados: nuevosCursos
-    });
-    closeModal();
-    toast('✅ Docente actualizado');
-    await renderAdminDocentes();
 }
 
 // --- APODERADOS ---
