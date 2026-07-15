@@ -2444,7 +2444,7 @@ async function renderStudentsListTable() {
     const idCurso = document.getElementById('studCurso').value;
     const alumnos = await DocenteApi.estudiantes(idCurso);
     document.getElementById('studentsList').innerHTML = alumnos.length ? `<div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm"><table class="w-full text-left"><thead class="bg-gray-50 border-b"><tr> <th class="px-6 py-3 text-xs font-bold uppercase">Alumno</th><th class="px-6 py-3 text-xs font-bold uppercase">RUT</th><th class="px-6 py-3 text-xs font-bold uppercase">Apoderado Responsable</th></tr></thead><tbody class="divide-y divide-gray-100">${alumnos.map(a =>
-        `<tr> <td class="px-6 py-3 font-medium text-gray-900">${a.nombre}</td> <td class="px-6 py-3 text-sm text-gray-500">${a.rut}</td> <td class="px-6 py-3 text-sm text-gray-600"> <strong class="text-slate-800">${a.apoderadoNombre}</strong> <br> <span class="text-xs text-indigo-500 font-medium">${a.apoderadoCorreo}</span> </td> </tr>`).join('')}</tbody></table></div>` : '<div class="text-center py-12 text-gray-400">Sin registros</div>';
+        `<tr> <td class="px-6 py-3 font-medium text-gray-900">${escapeHtml(a.nombre)}</td> <td class="px-6 py-3 text-sm text-gray-500">${escapeHtml(a.rut)}</td> <td class="px-6 py-3 text-sm text-gray-600"> <strong class="text-slate-800">${escapeHtml(a.apoderadoNombre || 'Sin asignar')}</strong> <br> <span class="text-xs ${a.apoderadoCorreo ? 'text-indigo-500' : 'text-gray-400'} font-medium">${escapeHtml(a.apoderadoCorreo || 'Sin correo registrado')}</span> </td> </tr>`).join('')}</tbody></table></div>` : '<div class="text-center py-12 text-gray-400">Sin registros</div>';
 }
 
 // --- APODERADO RENDERS ---

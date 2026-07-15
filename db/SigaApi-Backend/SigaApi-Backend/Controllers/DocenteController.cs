@@ -38,8 +38,13 @@ public class DocenteController(SigaDbContext db) : ControllerBase
             e.IdEstudiante,
             e.Nombre,
             e.Rut,
+            e.Correo,
+            e.IdCurso,
             nombreCurso = e.Curso!.Asignatura + " " + e.Curso.Nivel + e.Curso.Paralelo,
-            curso = e.Curso.Nivel + " " + e.Curso.Paralelo
+            curso = e.Curso.Nivel + " " + e.Curso.Paralelo,
+            e.IdApoderado,
+            apoderadoNombre = e.Apoderado != null ? e.Apoderado.Nombre : null,
+            apoderadoCorreo = e.Apoderado != null ? e.Apoderado.Correo : null
         }).ToListAsync();
         return Ok(resultado);
     }
