@@ -1663,7 +1663,7 @@ async function renderAdminApoderados() {
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     ${apoderados.map(a => {
-                        const pupilo = MOCK_DB.estudiantes.find(e => e.idEstudiante === a.pupiloId);
+                        const tienePupilo = Boolean(a.pupiloId && a.pupiloNombre);
                         return `
                         <tr class="hover:bg-gray-50 transition">
                             <td class="px-6 py-3">
@@ -1676,7 +1676,7 @@ async function renderAdminApoderados() {
                             </td>
                             <td class="px-6 py-3 text-sm text-gray-600">${a.identificador}</td>
                             <td class="px-6 py-3">
-                                ${pupilo ? `<span class="chip px-2 py-0.5 rounded text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">${pupilo.nombre} (${pupilo.nombreCurso})</span>` 
+                                ${tienePupilo ? `<span class="chip px-2 py-0.5 rounded text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">${escapeHtml(a.pupiloNombre)} (${escapeHtml(a.pupiloCurso || 'Curso sin identificar')})</span>`
                                          : '<span class="text-xs text-rose-500 font-medium">Sin pupilo asignado</span>'}
                             </td>
                             <td class="px-6 py-3 text-center space-x-3">
@@ -1769,7 +1769,8 @@ async function renderDocenteDashboard() {
     
     // Obtener datos recientes para los widgets
     const recentAnotaciones = await DocenteApi.anotaciones();
-    const recentAsistencia = MOCK_DB.asistencia.slice(-5).reverse(); 
+    const asistenciasPorCurso = await Promise.all(cursos.map(c => DocenteApi.asistencia(c.idCurso, todayStr())));
+    const recentAsistencia = asistenciasPorCurso.flat().filter(a => a.estado).slice(-5).reverse();
     
     document.getElementById('content').innerHTML = `
         ${dashHero('DOCENTE', `${greeting()}, ${escapeHtml(firstName(currentUser.nombre))} 👋`, 'Revisa la actividad de tus cursos: asistencia, promedios, anotaciones y materiales de apoyo.')}
@@ -1832,8 +1833,7 @@ async function renderDocenteDashboard() {
                 <div class="widget-head"><span class="w-icon bg-emerald-50">✅</span><h3>Registro de Asistencia Reciente</h3><button onclick="navigate('attendance')" class="ml-auto text-xs font-bold text-indigo-600 hover:text-indigo-800 transition">Ir a asistencia →</button></div>
                 <div class="widget-body space-y-2">
                     ${recentAsistencia.length ? recentAsistencia.map(a => {
-                        const est = MOCK_DB.estudiantes.find(e => e.idEstudiante === a.idEstudiante);
-                        const nombre = est ? est.nombre : 'Alumno';
+                        const nombre = a.nombre || a.nombreEstudiante || 'Estudiante sin identificar';
                         const color = a.estado === 'PRESENTE' ? 'bg-emerald-100 text-emerald-800' : a.estado === 'AUSENTE' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800';
                         return `<div class="flex justify-between items-center gap-2 text-sm p-2.5 bg-slate-50/70 border border-slate-100 rounded-xl">
                             <span class="font-medium text-slate-700 truncate">${escapeHtml(nombre)} <span class="text-xs text-slate-400">(${escapeHtml(a.fecha)})</span></span>
@@ -2309,7 +2309,6 @@ async function renderMaterialsList(idCurso) {
             </thead>
             <tbody class="divide-y divide-gray-100">
                 ${list.map(m => {
-                    const curso = MOCK_DB.cursos.find(c => c.idCurso === m.idCurso);
                     return `<tr class="hover:bg-gray-50 transition">
                         <td class="px-6 py-3 font-medium text-gray-900">
                             <div class="flex items-center space-x-2">
@@ -2317,7 +2316,7 @@ async function renderMaterialsList(idCurso) {
                                 <span>${m.titulo}</span>
                             </div>
                         </td>
-                        <td class="px-6 py-3 text-sm text-indigo-600 font-semibold">${curso ? curso.nombreCurso : m.asignatura}</td>
+                        <td class="px-6 py-3 text-sm text-indigo-600 font-semibold">${escapeHtml(m.nombreCurso || m.asignatura || 'Curso sin identificar')}</td>
                         <td class="px-6 py-3">
                             <span class="chip px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">${m.tipoArchivo || 'PDF'}</span>
                         </td>
@@ -2675,7 +2674,7 @@ async function renderApoderadoMaterials() {
         `<div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm flex flex-col hover:border-indigo-400 transition">
             <div class="text-3xl mb-3">📄</div>
             <h4 class="font-bold text-sm text-gray-900">${m.titulo}</h4>
-            <p class="text-xs text-gray-500 mt-1 mb-4 flex-1 font-semibold text-indigo-600">${m.asignatura}</p>
+            <p class="text-xs text-gray-500 mt-1 mb-4 flex-1 font-semibold text-indigo-600">${escapeHtml(m.nombreCurso || m.asignatura || 'Curso sin identificar')}</p>
             <button onclick="downloadMaterialApoderado(${m.idMaterial}, '${m.titulo.replace(/'/g, "\\'")}')" 
                     class="text-xs font-bold uppercase text-indigo-600 border-b border-indigo-600 hover:text-indigo-800 pb-0.5 self-start transition cursor-pointer bg-transparent border-0 p-0">
                 Descargar Archivo

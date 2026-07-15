@@ -557,10 +557,29 @@ if (window.SIGA_CONFIG?.useBackend) {
     AdminApi.calificaciones = idCurso => request(`/api/admin/calificaciones?${query({ idCurso })}`);
 
     DocenteApi.cursos = () => request('/api/docente/cursos');
+    DocenteApi.dashboard = async () => {
+        const cursos = await DocenteApi.cursos();
+        const estudiantesPorCurso = await Promise.all(cursos.map(c => DocenteApi.estudiantes(c.idCurso)));
+        const idsEstudiantes = new Set(estudiantesPorCurso.flat().map(e => e.idEstudiante));
+        const notas = await DocenteApi.calificaciones();
+        const promedio = notas.length ? (notas.reduce((total, n) => total + Number(n.nota), 0) / notas.length).toFixed(1) : '0.0';
+        return { totalEstudiantes: idsEstudiantes.size, totalClases: cursos.length, promedioGeneral: promedio };
+    };
     DocenteApi.estudiantes = idCurso => request(`/api/docente/estudiantes?${query({ idCurso })}`);
     DocenteApi.asistencia = (idCurso, fecha) => request(`/api/docente/asistencia?${query({ idCurso, fecha })}`);
+    DocenteApi.asistenciaHoyPorCurso = async idCurso => {
+        const fecha = new Date().toISOString().split('T')[0];
+        const registros = await DocenteApi.asistencia(idCurso, fecha);
+        if (!registros.length) return '0%';
+        const presentes = registros.filter(r => r.estado === 'PRESENTE' || r.estado === 'JUSTIFICADO').length;
+        return `${Math.round(presentes * 100 / registros.length)}%`;
+    };
     DocenteApi.guardarAsistencia = items => request('/api/docente/asistencia', { method: 'POST', body: JSON.stringify(items) });
     DocenteApi.calificaciones = idCurso => request(`/api/docente/calificaciones?${query({ idCurso })}`);
+    DocenteApi.promedioPorCurso = async idCurso => {
+        const notas = await DocenteApi.calificaciones(idCurso);
+        return notas.length ? (notas.reduce((total, n) => total + Number(n.nota), 0) / notas.length).toFixed(1) : '0.0';
+    };
     DocenteApi.crearCalificacion = data => request('/api/docente/calificaciones', { method: 'POST', body: JSON.stringify(data) });
     DocenteApi.editarCalificacion = (id, data) => request(`/api/docente/calificaciones/${id}`, { method: 'PUT', body: JSON.stringify(data) });
     DocenteApi.eliminarCalificacion = id => request(`/api/docente/calificaciones/${id}`, { method: 'DELETE' });

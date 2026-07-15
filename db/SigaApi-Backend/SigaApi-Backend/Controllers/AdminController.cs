@@ -16,7 +16,17 @@ public class AdminController(SigaDbContext db) : ControllerBase
     {
         var totalEstudiantes = await db.Estudiantes.CountAsync(e => e.Activo);
         var totalCursos = await db.Cursos.CountAsync(c => c.Activo);
-        return Ok(new { totalEstudiantes, totalCursos, asistenciasHoy = "94%", promedioGeneral = "5.8" });
+        var hoy = DateOnly.FromDateTime(DateTime.Today);
+        var presentesHoy = await db.Asistencias.CountAsync(a => a.Fecha == hoy && (a.Estado == "PRESENTE" || a.Estado == "JUSTIFICADO"));
+        var porcentajeAsistencia = totalEstudiantes > 0 ? Math.Round(presentesHoy * 100m / totalEstudiantes) : 0;
+        var promedio = await db.Calificaciones.Select(c => (decimal?)c.Nota).AverageAsync() ?? 0;
+        return Ok(new
+        {
+            totalEstudiantes,
+            totalCursos,
+            asistenciasHoy = $"{porcentajeAsistencia:0}%",
+            promedioGeneral = promedio.ToString("0.0")
+        });
     }
 
     [HttpGet("cursos")]
@@ -68,7 +78,8 @@ public class AdminController(SigaDbContext db) : ControllerBase
             e.Nombre,
             e.Rut,
             e.Correo,
-            nombreCurso = e.Curso!.NombreCurso,
+            nombreCurso = e.Curso!.Asignatura + " " + e.Curso.Nivel + e.Curso.Paralelo,
+            curso = e.Curso.Nivel + " " + e.Curso.Paralelo,
             apoderadoNombre = e.Apoderado != null ? e.Apoderado.Nombre : "Por asignar",
             apoderadoCorreo = e.Apoderado != null ? e.Apoderado.Correo : "Por asignar"
         }).ToListAsync();
@@ -164,8 +175,20 @@ public class AdminController(SigaDbContext db) : ControllerBase
     [HttpGet("apoderados")]
     public async Task<IActionResult> Apoderados()
     {
-        var apoderados = await db.Apoderados.Where(a => a.Activo).ToListAsync();
-        return Ok(apoderados.Select(a => new { a.IdApoderado, a.Nombre, identificador = a.Correo, rol = "APODERADO" }));
+        var resultado = await db.Apoderados
+            .Where(a => a.Activo)
+            .Select(a => new
+            {
+                a.IdApoderado,
+                a.Nombre,
+                identificador = a.Correo,
+                rol = "APODERADO",
+                pupiloId = db.Estudiantes.Where(e => e.IdApoderado == a.IdApoderado && e.Activo).Select(e => (int?)e.IdEstudiante).FirstOrDefault(),
+                pupiloNombre = db.Estudiantes.Where(e => e.IdApoderado == a.IdApoderado && e.Activo).Select(e => e.Nombre).FirstOrDefault(),
+                pupiloCurso = db.Estudiantes.Where(e => e.IdApoderado == a.IdApoderado && e.Activo)
+                    .Select(e => e.Curso!.Asignatura + " " + e.Curso.Nivel + e.Curso.Paralelo).FirstOrDefault()
+            }).ToListAsync();
+        return Ok(resultado);
     }
 
     public record NuevoApoderadoDto(string Rut, string Nombre, string Correo, string Contrasena, int PupiloId);
@@ -193,14 +216,21 @@ public class AdminController(SigaDbContext db) : ControllerBase
     [HttpGet("alertas")]
     public async Task<IActionResult> Alertas()
     {
-        var alertas = await db.Alertas.ToListAsync();
-        var resultado = alertas.Select(a => new
-        {
-            nombre = db.Estudiantes.Where(e => e.IdEstudiante == a.IdEstudiante).Select(e => e.Nombre).FirstOrDefault(),
-            a.TipoRiesgo,
-            a.SemaforoEstado,
-            a.Fecha
-        });
+        var resultado = await (
+            from a in db.Alertas
+            join e in db.Estudiantes on a.IdEstudiante equals e.IdEstudiante
+            join curso in db.Cursos on e.IdCurso equals curso.IdCurso
+            select new
+            {
+                a.IdAlerta,
+                a.IdEstudiante,
+                nombre = e.Nombre,
+                nombreCurso = curso.Asignatura + " " + curso.Nivel + curso.Paralelo,
+                a.TipoRiesgo,
+                a.SemaforoEstado,
+                a.Fecha,
+                a.Observacion
+            }).ToListAsync();
         return Ok(resultado);
     }
 
@@ -213,7 +243,21 @@ public class AdminController(SigaDbContext db) : ControllerBase
             var estudiantesIds = db.Estudiantes.Where(e => e.IdCurso == idCurso).Select(e => e.IdEstudiante);
             query = query.Where(a => estudiantesIds.Contains(a.IdEstudiante));
         }
-        return Ok(await query.ToListAsync());
+        return Ok(await (
+            from a in query
+            join e in db.Estudiantes on a.IdEstudiante equals e.IdEstudiante
+            join curso in db.Cursos on e.IdCurso equals curso.IdCurso
+            select new
+            {
+                a.IdAsistencia,
+                a.IdEstudiante,
+                nombreEstudiante = e.Nombre,
+                e.IdCurso,
+                nombreCurso = curso.Asignatura + " " + curso.Nivel + curso.Paralelo,
+                a.Fecha,
+                a.Estado,
+                a.Observacion
+            }).ToListAsync());
     }
 
     [HttpGet("calificaciones")]

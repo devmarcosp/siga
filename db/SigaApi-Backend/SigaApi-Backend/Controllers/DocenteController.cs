@@ -38,7 +38,8 @@ public class DocenteController(SigaDbContext db) : ControllerBase
             e.IdEstudiante,
             e.Nombre,
             e.Rut,
-            nombreCurso = e.Curso!.NombreCurso
+            nombreCurso = e.Curso!.Asignatura + " " + e.Curso.Nivel + e.Curso.Paralelo,
+            curso = e.Curso.Nivel + " " + e.Curso.Paralelo
         }).ToListAsync();
         return Ok(resultado);
     }
@@ -215,7 +216,21 @@ public class DocenteController(SigaDbContext db) : ControllerBase
         var cursosIds = await CursosIdsAsync();
         var query = db.Materiales.Where(m => cursosIds.Contains(m.IdCurso));
         if (idCurso.HasValue) query = query.Where(m => m.IdCurso == idCurso);
-        return Ok(await query.ToListAsync());
+        return Ok(await (
+            from m in query
+            join curso in db.Cursos on m.IdCurso equals curso.IdCurso
+            select new
+            {
+                m.IdMaterial,
+                m.IdCurso,
+                nombreCurso = curso.Asignatura + " " + curso.Nivel + curso.Paralelo,
+                asignatura = curso.Asignatura,
+                m.IdDocente,
+                m.Titulo,
+                m.TipoArchivo,
+                m.RutaArchivo,
+                m.FechaSubida
+            }).ToListAsync());
     }
 
     [HttpPost("materiales")]

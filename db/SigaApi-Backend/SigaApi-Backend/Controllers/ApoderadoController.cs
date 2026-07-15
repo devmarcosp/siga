@@ -100,6 +100,21 @@ public class ApoderadoController(SigaDbContext db) : ControllerBase
         var idPupilo = await IdPupiloAsync();
         var est = await db.Estudiantes.FindAsync(idPupilo ?? 0);
         if (est == null) return Ok(new List<object>());
-        return Ok(await db.Materiales.Where(m => m.IdCurso == est.IdCurso).ToListAsync());
+        return Ok(await (
+            from m in db.Materiales
+            join curso in db.Cursos on m.IdCurso equals curso.IdCurso
+            where m.IdCurso == est.IdCurso
+            select new
+            {
+                m.IdMaterial,
+                m.IdCurso,
+                nombreCurso = curso.Asignatura + " " + curso.Nivel + curso.Paralelo,
+                asignatura = curso.Asignatura,
+                m.IdDocente,
+                m.Titulo,
+                m.TipoArchivo,
+                m.RutaArchivo,
+                m.FechaSubida
+            }).ToListAsync());
     }
 }
