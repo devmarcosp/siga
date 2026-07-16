@@ -25,9 +25,12 @@ public class ApoderadoController(SigaDbContext db) : ControllerBase
 
         var notas = await db.Calificaciones.Where(c => c.IdEstudiante == idPupilo).ToListAsync();
         var promedio = notas.Count > 0 ? notas.Average(n => n.Nota).ToString("0.0") : "0.0";
-        var curso = await db.Cursos.FindAsync(est.IdCurso);
+        var cursos = await db.EstudianteCursos
+            .Where(ec => ec.IdEstudiante == est.IdEstudiante)
+            .Select(ec => ec.Curso!.Asignatura + " " + ec.Curso.Nivel + ec.Curso.Paralelo)
+            .ToListAsync();
 
-        return Ok(new { nombrePupilo = est.Nombre, curso = curso?.NombreCurso, promedio });
+        return Ok(new { nombrePupilo = est.Nombre, curso = string.Join(", ", cursos), cursos, promedio });
     }
 
     [HttpGet("calificaciones")]
@@ -98,12 +101,12 @@ public class ApoderadoController(SigaDbContext db) : ControllerBase
     public async Task<IActionResult> Materiales()
     {
         var idPupilo = await IdPupiloAsync();
-        var est = await db.Estudiantes.FindAsync(idPupilo ?? 0);
-        if (est == null) return Ok(new List<object>());
+        if (!idPupilo.HasValue) return Ok(new List<object>());
+        var cursosIds = db.EstudianteCursos.Where(ec => ec.IdEstudiante == idPupilo.Value).Select(ec => ec.IdCurso);
         return Ok(await (
             from m in db.Materiales
             join curso in db.Cursos on m.IdCurso equals curso.IdCurso
-            where m.IdCurso == est.IdCurso
+            where cursosIds.Contains(m.IdCurso)
             select new
             {
                 m.IdMaterial,

@@ -11,6 +11,7 @@ public class SigaDbContext(DbContextOptions<SigaDbContext> options) : DbContext(
     public DbSet<Curso> Cursos => Set<Curso>();
     public DbSet<DocenteCurso> DocenteCursos => Set<DocenteCurso>();
     public DbSet<Estudiante> Estudiantes => Set<Estudiante>();
+    public DbSet<EstudianteCurso> EstudianteCursos => Set<EstudianteCurso>();
     public DbSet<Asistencia> Asistencias => Set<Asistencia>();
     public DbSet<Calificacion> Calificaciones => Set<Calificacion>();
     public DbSet<Anotacion> Anotaciones => Set<Anotacion>();
@@ -70,10 +71,20 @@ public class SigaDbContext(DbContextOptions<SigaDbContext> options) : DbContext(
             e.HasOne(x => x.Apoderado).WithMany().HasForeignKey(x => x.IdApoderado);
         });
 
+        modelBuilder.Entity<EstudianteCurso>(e =>
+        {
+            e.ToTable("EstudianteCurso");
+            e.HasKey(x => x.IdEstudianteCurso);
+            e.HasIndex(x => new { x.IdEstudiante, x.IdCurso }).IsUnique();
+            e.HasOne(x => x.Estudiante).WithMany(x => x.EstudianteCursos).HasForeignKey(x => x.IdEstudiante);
+            e.HasOne(x => x.Curso).WithMany(x => x.EstudianteCursos).HasForeignKey(x => x.IdCurso);
+        });
+
         modelBuilder.Entity<Asistencia>(e =>
         {
             e.ToTable("Asistencia");
             e.HasKey(x => x.IdAsistencia);
+            e.HasIndex(x => new { x.IdEstudiante, x.IdCurso, x.Fecha }).IsUnique();
         });
 
         modelBuilder.Entity<Calificacion>(e =>

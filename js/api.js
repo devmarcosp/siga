@@ -553,6 +553,9 @@ if (window.SIGA_CONFIG?.useBackend) {
     AdminApi.eliminarDocente = id => request(`/api/admin/docentes/${encodeURIComponent(id)}`, { method: 'DELETE' });
     AdminApi.apoderados = () => request('/api/admin/apoderados');
     AdminApi.crearApoderado = data => request('/api/admin/apoderados', { method: 'POST', body: JSON.stringify(data) });
+    AdminApi.editarApoderado = (id, data) => request(`/api/admin/apoderados/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    AdminApi.eliminarApoderado = id => request(`/api/admin/apoderados/${id}`, { method: 'DELETE' });
+    AdminApi.asignarEstudiantesCurso = (idCurso, estudiantesIds) => request(`/api/admin/cursos/${idCurso}/estudiantes`, { method: 'PUT', body: JSON.stringify(estudiantesIds) });
     AdminApi.alertas = () => request('/api/admin/alertas');
     AdminApi.asistencia = idCurso => request(`/api/admin/asistencia?${query({ idCurso })}`);
     AdminApi.calificaciones = idCurso => request(`/api/admin/calificaciones?${query({ idCurso })}`);

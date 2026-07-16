@@ -30,8 +30,9 @@ public class DocenteController(SigaDbContext db) : ControllerBase
     public async Task<IActionResult> Estudiantes([FromQuery] int? idCurso)
     {
         var cursosIds = await CursosIdsAsync();
-        var query = db.Estudiantes.Where(e => e.Activo && cursosIds.Contains(e.IdCurso));
-        if (idCurso.HasValue) query = query.Where(e => e.IdCurso == idCurso);
+        if (idCurso.HasValue && !cursosIds.Contains(idCurso.Value)) return Forbid();
+        var query = db.Estudiantes.Where(e => e.Activo && db.EstudianteCursos.Any(ec =>
+            ec.IdEstudiante == e.IdEstudiante && cursosIds.Contains(ec.IdCurso) && (!idCurso.HasValue || ec.IdCurso == idCurso.Value)));
 
         var resultado = await query.Select(e => new
         {
@@ -39,9 +40,11 @@ public class DocenteController(SigaDbContext db) : ControllerBase
             e.Nombre,
             e.Rut,
             e.Correo,
-            e.IdCurso,
-            nombreCurso = e.Curso!.Asignatura + " " + e.Curso.Nivel + e.Curso.Paralelo,
-            curso = e.Curso.Nivel + " " + e.Curso.Paralelo,
+            idCurso = idCurso ?? e.IdCurso,
+            nombreCurso = db.Cursos.Where(c => c.IdCurso == (idCurso ?? e.IdCurso))
+                .Select(c => c.Asignatura + " " + c.Nivel + c.Paralelo).FirstOrDefault(),
+            curso = db.Cursos.Where(c => c.IdCurso == (idCurso ?? e.IdCurso))
+                .Select(c => c.Nivel + " " + c.Paralelo).FirstOrDefault(),
             e.IdApoderado,
             apoderadoNombre = e.Apoderado != null ? e.Apoderado.Nombre : null,
             apoderadoCorreo = e.Apoderado != null ? e.Apoderado.Correo : null
@@ -56,31 +59,38 @@ public class DocenteController(SigaDbContext db) : ControllerBase
         if (!cursosIds.Contains(idCurso)) return Forbid();
 
         var fechaFiltro = DateOnly.Parse(fecha);
-        var estudiantes = await db.Estudiantes.Where(e => e.IdCurso == idCurso && e.Activo).ToListAsync();
+        var estudiantes = await db.Estudiantes
+            .Where(e => e.Activo && db.EstudianteCursos.Any(ec => ec.IdEstudiante == e.IdEstudiante && ec.IdCurso == idCurso))
+            .ToListAsync();
         var resultado = new List<object>();
         foreach (var e in estudiantes)
         {
-            var registro = await db.Asistencias.FirstOrDefaultAsync(a => a.IdEstudiante == e.IdEstudiante && a.Fecha == fechaFiltro);
+            var registro = await db.Asistencias.FirstOrDefaultAsync(a => a.IdEstudiante == e.IdEstudiante && a.IdCurso == idCurso && a.Fecha == fechaFiltro);
             resultado.Add(new { e.IdEstudiante, e.Nombre, estado = registro?.Estado ?? "", observacion = registro?.Observacion ?? "" });
         }
         return Ok(resultado);
     }
 
-    public record ItemAsistenciaDto(int IdEstudiante, string Fecha, string Estado, string? Observacion);
+    public record ItemAsistenciaDto(int IdEstudiante, int IdCurso, string Fecha, string Estado, string? Observacion);
 
     [HttpPost("asistencia")]
     public async Task<IActionResult> GuardarAsistencia(List<ItemAsistenciaDto> items)
     {
         var cursosIds = await CursosIdsAsync();
-        var estudiantesPermitidos = await db.Estudiantes
-            .Where(e => e.Activo && cursosIds.Contains(e.IdCurso)).Select(e => e.IdEstudiante).ToListAsync();
+        var estudiantesPermitidos = await db.EstudianteCursos
+            .Where(ec => cursosIds.Contains(ec.IdCurso) && ec.Estudiante!.Activo)
+            .Select(ec => ec.IdEstudiante)
+            .Distinct()
+            .ToListAsync();
         foreach (var i in items)
         {
+            if (!cursosIds.Contains(i.IdCurso)) return Forbid();
             if (!estudiantesPermitidos.Contains(i.IdEstudiante)) return Forbid();
+            if (!await db.EstudianteCursos.AnyAsync(ec => ec.IdEstudiante == i.IdEstudiante && ec.IdCurso == i.IdCurso)) return Forbid();
             if (!DateOnly.TryParse(i.Fecha, out var fecha)) return BadRequest(new { mensaje = "Fecha inválida." });
             if (i.Estado is not ("PRESENTE" or "AUSENTE" or "TARDANZA" or "JUSTIFICADO"))
                 return BadRequest(new { mensaje = "Estado de asistencia inválido." });
-            var existente = await db.Asistencias.FirstOrDefaultAsync(a => a.IdEstudiante == i.IdEstudiante && a.Fecha == fecha);
+            var existente = await db.Asistencias.FirstOrDefaultAsync(a => a.IdEstudiante == i.IdEstudiante && a.IdCurso == i.IdCurso && a.Fecha == fecha);
             if (existente != null)
             {
                 existente.Estado = i.Estado;
@@ -88,7 +98,7 @@ public class DocenteController(SigaDbContext db) : ControllerBase
             }
             else
             {
-                db.Asistencias.Add(new Asistencia { IdEstudiante = i.IdEstudiante, Fecha = fecha, Estado = i.Estado, Observacion = i.Observacion });
+                db.Asistencias.Add(new Asistencia { IdEstudiante = i.IdEstudiante, IdCurso = i.IdCurso, Fecha = fecha, Estado = i.Estado, Observacion = i.Observacion });
             }
         }
         await db.SaveChangesAsync();
@@ -129,7 +139,7 @@ public class DocenteController(SigaDbContext db) : ControllerBase
     {
         var cursosIds = await CursosIdsAsync();
         if (!cursosIds.Contains(data.IdCurso)) return BadRequest(new { mensaje = "No tienes acceso a este curso" });
-        if (!await db.Estudiantes.AnyAsync(e => e.IdEstudiante == data.IdEstudiante && e.IdCurso == data.IdCurso && e.Activo))
+        if (!await db.EstudianteCursos.AnyAsync(ec => ec.IdEstudiante == data.IdEstudiante && ec.IdCurso == data.IdCurso && ec.Estudiante!.Activo))
             return BadRequest(new { mensaje = "El estudiante no pertenece al curso." });
 
         data.FechaRegistro = data.FechaRegistro == default ? DateOnly.FromDateTime(DateTime.Now) : data.FechaRegistro;
@@ -145,9 +155,10 @@ public class DocenteController(SigaDbContext db) : ControllerBase
         if (cal == null) return NotFound(new { mensaje = "Calificacion no encontrada" });
         if (!(await CursosIdsAsync()).Contains(cal.IdCurso)) return Forbid();
         cal.Nota = data.Nota;
-        cal.Ponderacion = data.Ponderacion;
-        cal.TipoEvaluacion = data.TipoEvaluacion;
-        cal.Descripcion = data.Descripcion;
+        if (data.Ponderacion > 0) cal.Ponderacion = data.Ponderacion;
+        if (!string.IsNullOrWhiteSpace(data.TipoEvaluacion)) cal.TipoEvaluacion = data.TipoEvaluacion;
+        if (!string.IsNullOrWhiteSpace(data.Descripcion)) cal.Descripcion = data.Descripcion;
+        if (data.FechaNota.HasValue) cal.FechaNota = data.FechaNota;
         await db.SaveChangesAsync();
         return Ok(true);
     }
@@ -199,14 +210,20 @@ public class DocenteController(SigaDbContext db) : ControllerBase
     {
         var cursosIds = await CursosIdsAsync();
         var estudiante = await db.Estudiantes.FindAsync(dto.IdEstudiante);
-        if (estudiante == null || !cursosIds.Contains(estudiante.IdCurso)) return Forbid();
-        if (dto.IdCurso.HasValue && dto.IdCurso != estudiante.IdCurso) return BadRequest(new { mensaje = "Curso inválido." });
+        if (estudiante == null || !estudiante.Activo) return NotFound(new { mensaje = "Estudiante no encontrado." });
+        var idCurso = dto.IdCurso ?? await db.EstudianteCursos
+            .Where(ec => ec.IdEstudiante == dto.IdEstudiante && cursosIds.Contains(ec.IdCurso))
+            .Select(ec => (int?)ec.IdCurso)
+            .FirstOrDefaultAsync();
+        if (!idCurso.HasValue || !cursosIds.Contains(idCurso.Value) ||
+            !await db.EstudianteCursos.AnyAsync(ec => ec.IdEstudiante == dto.IdEstudiante && ec.IdCurso == idCurso.Value))
+            return Forbid();
         if (dto.Tipo is not ("POSITIVA" or "NEGATIVA" or "NEUTRA")) return BadRequest(new { mensaje = "Tipo inválido." });
         db.Anotaciones.Add(new Anotacion
         {
             IdEstudiante = dto.IdEstudiante,
             IdDocente = IdDocenteActual,
-            IdCurso = dto.IdCurso,
+            IdCurso = idCurso,
             Tipo = dto.Tipo,
             Observacion = dto.Observacion,
             FechaRegistro = DateTime.Now

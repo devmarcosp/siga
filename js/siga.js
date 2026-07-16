@@ -525,6 +525,9 @@ async function renderAdminCursos() {
                     <p class="text-sm text-gray-500 ml-6">${c.nivel} · Paralelo ${c.paralelo} · ${c.anioEscolar}</p>
                 </div>
                 <div class="flex gap-2 ml-4">
+                    <button onclick="openCourseStudentsModal(${c.idCurso})" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg border border-indigo-100 transition" title="Asignar alumnos al curso">
+                        👥 Administrar alumnos
+                    </button>
                     <button onclick="exportarCursoAExcel(${c.idCurso}, '${c.nombreCurso}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition flex items-center gap-1.5" title="Exportar asistencia y notas a Excel">
                         <span>📊</span> Exportar
                     </button>
@@ -590,149 +593,6 @@ async function renderAdminCursos() {
     }
     document.getElementById('content').innerHTML = html + '</div>';
 }
-// ==========================================
-// VISTA: GESTIÓN DE DOCENTES (ACTUALIZADA)
-// ==========================================
-async function renderAdminDocentes() {
-    if(document.getElementById('pageTitle')) {
-        document.getElementById('pageTitle').textContent = 'Gestión de Personal Docente';
-    }
-    
-    const docentes = await AdminApi.obtenerDocentes();
-    const cursos = await AdminApi.obtenerCursos();
-
-    const cursosMap = {};
-    cursos.forEach(c => {
-        cursosMap[c.idCurso] = c.nombreCurso;
-    });
-
-    let html = `
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            <div>
-                <p class="text-sm text-gray-500">Administra las credenciales de acceso y asignaciones académicas del profesorado.</p>
-            </div>
-            <button onclick="abrirModalCrearDocente()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition flex items-center gap-2">
-                <span>➕</span> Agregar Docente
-            </button>
-        </div>
-
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-slate-50 border-b border-gray-200 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            <th class="p-4">Nombre Docente</th>
-                            <th class="p-4">Correo / Usuario</th>
-                            <th class="p-4">Cursos Asignados</th>
-                            <th class="p-4 text-center">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100 text-sm text-slate-700">
-    `;
-
-    if (docentes.length === 0) {
-        html += `<tr><td colspan="4" class="p-8 text-center text-gray-400 italic">No hay docentes registrados en el sistema.</td></tr>`;
-    } else {
-        docentes.forEach(d => {
-            const chipsCursos = d.cursosAsignados && d.cursosAsignados.length > 0
-                ? d.cursosAsignados.map(id => `
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100 mr-1 mb-1 shadow-2xs">
-                        ${cursosMap[id] || `Curso ID: ${id}`}
-                    </span>
-                  `).join('')
-                : '<span class="text-xs text-gray-400 italic">Sin cursos asignados</span>';
-
-            html += `
-                <tr class="hover:bg-slate-50/80 transition">
-                    <td class="p-4 font-semibold text-slate-900">${d.nombre}</td>
-                    <td class="p-4 text-slate-500 font-mono text-xs">${d.identificador}</td>
-                    <td class="p-4">${chipsCursos}</td>
-                    <td class="p-4 text-center space-x-3">
-                        <button onclick="openEditDocenteModal('${d.identificador}')" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition">✏️ Editar</button>
-                        <button onclick="deleteDocente('${d.identificador}')" class="text-xs font-bold text-rose-600 hover:text-rose-800 transition">🗑️ Eliminar</button>
-                    </td>
-                </tr>
-            `;
-        });
-    }
-
-    html += `
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `;
-
-    document.getElementById('content').innerHTML = html;
-}
-function openDocenteModal() {
-    const m = document.getElementById('modal');
-    document.getElementById('modalContent').innerHTML = `
-    <div class="p-6 border-b border-gray-100 flex justify-between items-center">
-        <h3 class="font-bold text-gray-900 text-lg">Registrar Nuevo Docente</h3>
-        <button onclick="closeModal()" class="text-gray-400 text-xl hover:text-gray-600">&times;</button>
-    </div>
-    <form id="formDocente" onsubmit="saveDocente(event)" class="p-6 space-y-4">
-        <div>
-            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre Completo</label>
-            <input type="text" id="modalDocNombre" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none" placeholder="ej: María González Pérez"/>
-        </div>
-        <div>
-            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Correo Institucional</label>
-            <input type="email" id="modalDocCorreo" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none" placeholder="ej: m.gonzalez@edu.cl"/>
-        </div>
-        <div>
-            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Contraseña Inicial</label>
-            <input type="text" id="modalDocPass" required value="1234" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
-            <p class="text-xs text-gray-400 mt-1">El docente podrá cambiarla después de iniciar sesión</p>
-        </div>
-        <div>
-            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Cursos Asignados</label>
-            <div class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                ${MOCK_DB.cursos.map(c => `
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" value="${c.idCurso}" class="modalDocCursos rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"/>
-                        <span class="text-sm text-gray-700">${c.nombreCurso}</span>
-                    </label>
-                `).join('')}
-            </div>
-        </div>
-        <div class="pt-4 flex justify-end gap-2">
-            <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 font-medium hover:bg-gray-50">Cancelar</button>
-            <button type="submit" class="px-4 py-2 btn-primary rounded-lg text-sm font-medium text-white">Registrar Docente</button>
-        </div>
-    </form>
-    `;
-    m.classList.remove('hidden');
-}
-
-async function saveDocente(e) {
-    e.preventDefault();
-    
-    const nombre = document.getElementById('modalDocNombre').value.trim();
-    const correo = document.getElementById('modalDocCorreo').value.trim();
-    const pass = document.getElementById('modalDocPass').value.trim();
-    
-    const cursosSeleccionados = Array.from(document.querySelectorAll('.modalDocCursos:checked')).map(cb => parseInt(cb.value));
-    
-    // Validar que el correo no exista
-    if (MOCK_DB.users.find(u => u.identificador === correo)) {
-        toast('❌ Ya existe un usuario con ese correo');
-        return;
-    }
-    
-    await AdminApi.crearDocente({
-        nombre,
-        identificador: correo,
-        contrasena: pass,
-        cursosAsignados: cursosSeleccionados
-    });
-    
-    closeModal();
-    toast('✅ Docente registrado exitosamente');
-    await renderAdminDocentes();
-}
-
 async function deleteDocente(identificador) {
     if (confirm('¿Seguro que desea eliminar este docente?')) {
         await AdminApi.eliminarDocente(identificador);
@@ -762,23 +622,6 @@ async function loadCourseDetails(idCurso) {
     } else {
         studentsContainer.innerHTML = '<p class="text-xs italic text-gray-400">Sin alumnos</p>';
     }
-
-    const today = new Date().toISOString().split('T')[0];
-    const asistencia = await DocenteApi.asistencia(idCurso, today);
-    const attContainer = document.getElementById(`attendance-${idCurso}`);
-    if (asistencia.length) {
-        attContainer.innerHTML = asistencia.map(a => `<div class="flex justify-between"><span>${a.nombre}</span><span class="text-xs font-bold ${a.estado === 'PRESENTE' ? 'text-emerald-600' : a.estado === 'AUSENTE' ? 'text-rose-600' : 'text-amber-600'}">${a.estado || 'Sin registro'}</span></div>`).join('');
-    } else {
-        attContainer.innerHTML = '<p class="text-xs italic text-gray-400">Sin registros de asistencia</p>';
-    }
-
-    const calificaciones = await DocenteApi.calificaciones(idCurso);
-    const gradesContainer = document.getElementById(`grades-${idCurso}`);
-    if (calificaciones.length) {
-        gradesContainer.innerHTML = calificaciones.map(g => `<div class="flex justify-between"><span>${g.nombreEstudiante}</span><span class="text-xs font-bold ${parseFloat(g.nota) >= 4 ? 'text-emerald-600' : 'text-rose-600'}">${parseFloat(g.nota).toFixed(1)}</span></div>`).join('');
-    } else {
-        gradesContainer.innerHTML = '<p class="text-xs italic text-gray-400">Sin calificaciones</p>';
-    }
 }
 // ==========================================
 // DESGLOSE DE ASISTENCIA (SOLO LECTURA)
@@ -793,7 +636,10 @@ function toggleAttendanceDetails(idCurso) {
 
 async function loadAttendanceDetails(idCurso) {
     const container = document.getElementById(`att-content-${idCurso}`);
-    const estudiantes = await AdminApi.estudiantes(idCurso);
+    const [estudiantes, registros] = await Promise.all([
+        AdminApi.estudiantes(idCurso),
+        AdminApi.asistencia(idCurso)
+    ]);
     
     if (!estudiantes.length) {
         container.innerHTML = '<p class="text-sm text-gray-400 italic">No hay estudiantes en este curso.</p>';
@@ -839,16 +685,16 @@ async function loadAttendanceDetails(idCurso) {
     container.innerHTML = html;
 
     // Cargar estado inicial para la fecha de hoy
-    estudiantes.forEach(e => updateAttStatus(idCurso, e.idEstudiante));
+    estudiantes.forEach(e => updateAttStatus(idCurso, e.idEstudiante, registros));
 }
 
-function updateAttStatus(idCurso, idEstudiante) {
+async function updateAttStatus(idCurso, idEstudiante, registrosPrecargados = null) {
     const fecha = document.getElementById(`att-date-${idCurso}-${idEstudiante}`).value;
     const statusBadge = document.getElementById(`att-status-${idCurso}-${idEstudiante}`);
     const obsDiv = document.getElementById(`att-obs-${idCurso}-${idEstudiante}`);
     
-    // Buscar el registro en la base de datos simulada
-    const registro = MOCK_DB.asistencia.find(a => a.idEstudiante === idEstudiante && a.fecha === fecha);
+    const registros = registrosPrecargados || await AdminApi.asistencia(idCurso);
+    const registro = registros.find(a => a.idEstudiante === idEstudiante && String(a.fecha).slice(0, 10) === fecha);
     
     if (registro && registro.estado) {
         const estado = registro.estado.toUpperCase();
@@ -1176,7 +1022,10 @@ async function renderAdminEstudiantes() {
                                         <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold">
                                             ${s.nombre.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()}
                                         </div>
-                                        <span class="font-medium text-gray-900">${s.nombre}</span>
+                                        <div>
+                                            <span class="font-medium text-gray-900">${escapeHtml(s.nombre)}</span>
+                                            <div class="flex flex-wrap gap-1 mt-1">${(s.nombresCursos || [s.nombreCurso]).filter(Boolean).map(nombre => `<span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100">${escapeHtml(nombre)}</span>`).join('')}</div>
+                                        </div>
                                     </div>
                                 </td>
                                 <td class="px-6 py-3 text-sm text-gray-500">${s.rut}</td>
@@ -1226,11 +1075,11 @@ async function openStudentModal() {
             </div>
         </div>
         <div>
-            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Curso</label>
-            <select id="modalEstCurso" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none">
-                <option value="">Seleccione un curso...</option>
-                ${cursos.map(c => `<option value="${c.idCurso}">${escapeHtml(c.nombreCurso)}</option>`).join('')}
-            </select>
+            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Cursos y asignaturas</label>
+            <p class="text-xs text-gray-400 mb-2">Selecciona una o más asignaciones para el alumno.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-xl p-3 bg-slate-50/60">
+                ${cursos.map(c => `<label class="flex items-center gap-2 p-2 rounded-lg hover:bg-white cursor-pointer"><input type="checkbox" name="modalEstCursos" value="${c.idCurso}" class="text-indigo-600 rounded border-gray-300"><span class="text-sm text-slate-700">${escapeHtml(c.nombreCurso)}</span></label>`).join('')}
+            </div>
         </div>
         <div>
             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Correo del Estudiante</label>
@@ -1249,10 +1098,14 @@ async function saveStudent(e) {
     e.preventDefault();
     const nombre = document.getElementById('modalEstNombre').value.trim();
     const rut = document.getElementById('modalEstRut').value.trim();
-    const idCurso = parseInt(document.getElementById('modalEstCurso').value);
+    const cursosAsignados = Array.from(document.querySelectorAll('input[name="modalEstCursos"]:checked')).map(input => Number(input.value));
     const correo = document.getElementById('modalEstCorreo').value.trim();
+    if (!cursosAsignados.length) {
+        toast('Selecciona al menos un curso para matricular al alumno');
+        return;
+    }
     try {
-        await AdminApi.crearEstudiante({ nombre, rut, idCurso, correo });
+        await AdminApi.crearEstudiante({ nombre, rut, cursosAsignados, correo });
         closeModal();
         toast('✅ Alumno matriculado exitosamente');
         await renderAdminEstudiantes();
@@ -1264,7 +1117,8 @@ async function saveStudent(e) {
 // GESTIÓN DE CURSOS - MODAL
 // ==========================================
 
-function openCursoModal() {
+async function openCursoModal() {
+    const estudiantes = await AdminApi.estudiantes();
     const m = document.getElementById('modal');
     document.getElementById('modalContent').innerHTML = `
     <div class="p-6 border-b border-gray-100 flex justify-between items-center">
@@ -1272,11 +1126,7 @@ function openCursoModal() {
         <button onclick="closeModal()" class="text-gray-400 text-xl hover:text-gray-600">&times;</button>
     </div>
     <form id="formCurso" onsubmit="saveCurso(event)" class="p-6 space-y-4">
-        <div class="grid grid-cols-2 gap-4">
-            <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre del Curso</label>
-                <input type="text" id="modalCursoNombre" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none" placeholder="ej: Matemáticas 8°A"/>
-            </div>
+        <div>
             <div>
                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Asignatura</label>
                 <input type="text" id="modalCursoAsignatura" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none" placeholder="ej: Matemáticas"/>
@@ -1293,7 +1143,18 @@ function openCursoModal() {
             </div>
             <div>
                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Año Escolar</label>
-                <input type="number" id="modalCursoAnio" required value="2024" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
+                <input type="number" id="modalCursoAnio" required value="${new Date().getFullYear()}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
+            </div>
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Alumnos iniciales</label>
+            <p class="text-xs text-gray-400 mb-2">Puedes asignarlos ahora o administrar la matrícula después.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-xl p-3 bg-slate-50/60">
+                ${estudiantes.length ? estudiantes.map(e => `
+                    <label class="flex items-start gap-2 p-2 rounded-lg hover:bg-white cursor-pointer transition">
+                        <input type="checkbox" name="cursoEstudiantes" value="${e.idEstudiante}" class="mt-0.5 text-indigo-600 rounded border-gray-300">
+                        <span><strong class="block text-sm text-slate-800">${escapeHtml(e.nombre)}</strong><small class="text-gray-400">${escapeHtml(e.rut)}</small></span>
+                    </label>`).join('') : '<p class="text-sm text-gray-400 p-2">No hay alumnos activos para asignar.</p>'}
             </div>
         </div>
         <div class="pt-4 flex justify-end gap-2">
@@ -1309,17 +1170,77 @@ async function saveCurso(e) {
     e.preventDefault();
     
     const data = {
-        nombreCurso: document.getElementById('modalCursoNombre').value.trim(),
         asignatura: document.getElementById('modalCursoAsignatura').value.trim(),
         nivel: document.getElementById('modalCursoNivel').value.trim(),
         paralelo: document.getElementById('modalCursoParalelo').value.trim(),
-        anioEscolar: document.getElementById('modalCursoAnio').value
+        anioEscolar: Number(document.getElementById('modalCursoAnio').value),
+        estudiantesAsignados: Array.from(document.querySelectorAll('input[name="cursoEstudiantes"]:checked')).map(input => Number(input.value))
     };
-    
-    await AdminApi.crearCurso(data);
-    closeModal();
-    toast('✅ Curso creado exitosamente');
-    await renderAdminCursos();
+
+    try {
+        await AdminApi.crearCurso(data);
+        closeModal();
+        toast('✅ Curso creado exitosamente');
+        await renderAdminCursos();
+    } catch (error) {
+        toast(error.message || 'No fue posible crear el curso');
+    }
+}
+
+async function openCourseStudentsModal(idCurso) {
+    const [cursos, estudiantes] = await Promise.all([
+        AdminApi.obtenerCursos(),
+        AdminApi.estudiantes()
+    ]);
+    const curso = cursos.find(c => c.idCurso === idCurso);
+    if (!curso) {
+        toast('No fue posible encontrar el curso seleccionado');
+        return;
+    }
+    const asignados = new Set(curso.estudiantesAsignados || []);
+    const m = document.getElementById('modal');
+    document.getElementById('modalContent').innerHTML = `
+        <div class="p-6 border-b border-gray-100 flex justify-between items-start gap-4">
+            <div><h3 class="font-bold text-gray-900 text-lg">Alumnos de ${escapeHtml(curso.nombreCurso)}</h3><p class="text-xs text-gray-500 mt-1">Selecciona todos los alumnos que deben participar en esta asignatura.</p></div>
+            <button onclick="closeModal()" class="text-gray-400 text-xl hover:text-gray-600">&times;</button>
+        </div>
+        <form onsubmit="saveCourseStudents(event, ${idCurso})" class="p-6 space-y-4">
+            <div class="flex items-center justify-between rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-3">
+                <span class="text-sm font-semibold text-indigo-900">Matrícula seleccionada</span>
+                <strong id="courseStudentsCount" class="text-indigo-700">${asignados.size}</strong>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-80 overflow-y-auto border border-gray-200 rounded-xl p-3 bg-slate-50/60">
+                ${estudiantes.map(e => `
+                    <label class="flex items-start gap-2 p-2 rounded-lg hover:bg-white cursor-pointer transition">
+                        <input type="checkbox" name="manageCourseStudents" value="${e.idEstudiante}" ${asignados.has(e.idEstudiante) ? 'checked' : ''} onchange="updateCourseStudentsCount()" class="mt-0.5 text-indigo-600 rounded border-gray-300">
+                        <span><strong class="block text-sm text-slate-800">${escapeHtml(e.nombre)}</strong><small class="text-gray-400">${escapeHtml(e.rut)}</small></span>
+                    </label>`).join('') || '<p class="text-sm text-gray-400 p-2">No hay alumnos activos.</p>'}
+            </div>
+            <div class="pt-4 flex justify-end gap-2 border-t border-gray-100">
+                <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700">Cancelar</button>
+                <button type="submit" class="px-4 py-2 btn-primary rounded-lg text-sm font-medium text-white">Guardar matrícula</button>
+            </div>
+        </form>`;
+    m.classList.remove('hidden');
+}
+
+function updateCourseStudentsCount() {
+    const count = document.querySelectorAll('input[name="manageCourseStudents"]:checked').length;
+    const label = document.getElementById('courseStudentsCount');
+    if (label) label.textContent = count;
+}
+
+async function saveCourseStudents(event, idCurso) {
+    event.preventDefault();
+    const ids = Array.from(document.querySelectorAll('input[name="manageCourseStudents"]:checked')).map(input => Number(input.value));
+    try {
+        await AdminApi.asignarEstudiantesCurso(idCurso, ids);
+        closeModal();
+        toast('✅ Matrícula del curso actualizada');
+        await renderAdminCursos();
+    } catch (error) {
+        toast(error.message || 'No fue posible actualizar la matrícula');
+    }
 }
 
 // ==========================================
@@ -1680,8 +1601,8 @@ async function renderAdminApoderados() {
                                          : '<span class="text-xs text-rose-500 font-medium">Sin pupilo asignado</span>'}
                             </td>
                             <td class="px-6 py-3 text-center space-x-3">
-                                <button onclick="openEditApoderadoModal('${a.identificador}')" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition">✏️ Editar</button>
-                                <button onclick="deleteApoderado('${a.identificador}')" class="text-xs font-bold text-rose-600 hover:text-rose-800 transition">🗑️ Eliminar</button>
+                                <button onclick="openEditApoderadoModal(${a.idApoderado})" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition">✏️ Editar</button>
+                                <button onclick="deleteApoderado(${a.idApoderado})" class="text-xs font-bold text-rose-600 hover:text-rose-800 transition">🗑️ Eliminar</button>
                             </td>
                         </tr>`;
                     }).join('')}
@@ -1705,6 +1626,10 @@ async function openApoderadoModal() {
         <div>
             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre Completo</label>
             <input type="text" id="modalApoNombre" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none" placeholder="ej: Roberto Méndez"/>
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">RUT</label>
+            <input type="text" id="modalApoRut" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none" placeholder="ej: 12.345.678-9"/>
         </div>
         <div>
             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Correo Electrónico (Usuario de acceso)</label>
@@ -1734,26 +1659,24 @@ async function openApoderadoModal() {
 async function saveApoderado(e) {
     e.preventDefault();
     const nombre = document.getElementById('modalApoNombre').value.trim();
+    const rut = document.getElementById('modalApoRut').value.trim();
     const correo = document.getElementById('modalApoCorreo').value.trim();
     const contrasena = document.getElementById('modalApoPass').value.trim();
     const pupiloId = parseInt(document.getElementById('modalApoPupilo').value);
     
-    // Verificar si el usuario ya existe
-    if (MOCK_DB.users.find(u => u.identificador === correo)) {
-        toast('❌ Ya existe un usuario registrado con ese correo');
-        return;
+    try {
+        await AdminApi.crearApoderado({ rut, nombre, correo, contrasena, pupiloId });
+        closeModal();
+        toast('✅ Apoderado creado. Ya puede iniciar sesión.');
+        await renderAdminApoderados();
+    } catch (error) {
+        toast(error.message || 'No fue posible registrar al apoderado');
     }
-
-    await AdminApi.crearApoderado({ nombre, correo, contrasena, pupiloId });
-    
-    closeModal();
-    toast('✅ Apoderado creado. Ya puede iniciar sesión.');
-    await renderAdminApoderados();
 }
 
-async function deleteApoderado(identificador) {
+async function deleteApoderado(idApoderado) {
     if (confirm('¿Eliminar acceso de este apoderado?')) {
-        await AdminApi.eliminarApoderado(identificador);
+        await AdminApi.eliminarApoderado(idApoderado);
         toast('Apoderado eliminado');
         await renderAdminApoderados();
     }
@@ -1991,11 +1914,13 @@ function markAllPresent() {
 }
 async function saveAttendance() {
     const fecha = document.getElementById('attDate').value;
+    const idCurso = Number(document.getElementById('attCurso').value);
     const items = [];
     document.querySelectorAll('[data-sid]').forEach(row => {
         const sid = parseInt(row.dataset.sid);
         items.push({
             idEstudiante: sid,
+            idCurso,
             fecha,
             estado: document.querySelector(`[data-estado="${sid}"]`)?.value || 'PRESENTE',
             observacion: document.querySelector(`[data-note="${sid}"]`)?.value || ''
@@ -2115,9 +2040,12 @@ async function deleteGrade(id) {
 // EDITAR CALIFICACIONES (DOCENTE)
 // ==========================================
 async function openEditGradeModal(idCalificacion) {
-    // Buscamos la calificación actual en la base de datos simulada
-    const grade = MOCK_DB.calificaciones.find(c => c.idCalificacion === idCalificacion);
-    if(!grade) return;
+    const grades = await DocenteApi.calificaciones();
+    const grade = grades.find(c => c.idCalificacion === idCalificacion);
+    if (!grade) {
+        toast('No fue posible encontrar la calificación seleccionada');
+        return;
+    }
 
     const m = document.getElementById('modal');
     document.getElementById('modalContent').innerHTML = `
@@ -3081,13 +3009,14 @@ async function openEditStudentModal(idEstudiante) {
                 <input type="email" id="editEstCorreo" value="${escapeHtml(estudiante.correo || '')}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
             </div>
             <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Curso Asignado</label>
-                <select id="editEstCurso" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none">
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Cursos y asignaturas</label>
+                <p class="text-xs text-gray-400 mb-2">Los cambios se reflejarán en cada curso al guardar.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-xl p-3 bg-slate-50/60">
                     ${cursos.map(c => {
-                        const selected = c.idCurso === estudiante.idCurso ? 'selected' : '';
-                        return `<option value="${c.idCurso}" ${selected}>${escapeHtml(c.nombreCurso)}</option>`;
+                        const selected = (estudiante.cursosAsignados || [estudiante.idCurso]).includes(c.idCurso) ? 'checked' : '';
+                        return `<label class="flex items-center gap-2 p-2 rounded-lg hover:bg-white cursor-pointer"><input type="checkbox" name="editEstCursos" value="${c.idCurso}" ${selected} class="text-indigo-600 rounded border-gray-300"><span class="text-sm text-slate-700">${escapeHtml(c.nombreCurso)}</span></label>`;
                     }).join('')}
-                </select>
+                </div>
             </div>
             <div class="pt-4 flex justify-end gap-2">
                 <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancelar</button>
@@ -3100,13 +3029,17 @@ async function openEditStudentModal(idEstudiante) {
 
 async function saveEditedStudent(e, idEstudiante) {
     e.preventDefault();
-    const idCurso = parseInt(document.getElementById('editEstCurso').value);
+    const cursosAsignados = Array.from(document.querySelectorAll('input[name="editEstCursos"]:checked')).map(input => Number(input.value));
+    if (!cursosAsignados.length) {
+        toast('El alumno debe conservar al menos un curso asignado');
+        return;
+    }
     try {
         await AdminApi.editarEstudiante(idEstudiante, {
             nombre: document.getElementById('editEstNombre').value.trim(),
             rut: document.getElementById('editEstRut').value.trim(),
             correo: document.getElementById('editEstCorreo').value.trim(),
-            idCurso
+            cursosAsignados
         });
         closeModal();
         toast('✅ Alumno actualizado');
@@ -3189,6 +3122,10 @@ async function saveEditedDocente(e, idDocente) {
     e.preventDefault();
     const checkboxes = document.querySelectorAll('input[name="editDocCursos"]:checked');
     const nuevosCursos = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    if (!nuevosCursos.length) {
+        toast('El docente debe conservar al menos un curso asignado');
+        return;
+    }
     try {
         await AdminApi.editarDocente(idDocente, {
             rut: document.getElementById('editDocRut').value.trim(),
@@ -3207,35 +3144,46 @@ async function saveEditedDocente(e, idDocente) {
 }
 
 // --- APODERADOS ---
-async function openEditApoderadoModal(identificador) {
-    const apoderado = MOCK_DB.users.find(u => u.rol === 'APODERADO' && u.identificador === identificador);
-    if (!apoderado) return;
+async function openEditApoderadoModal(idApoderado) {
+    const [apoderados, estudiantes] = await Promise.all([
+        AdminApi.apoderados(),
+        AdminApi.estudiantes()
+    ]);
+    const apoderado = apoderados.find(a => a.idApoderado === idApoderado);
+    if (!apoderado) {
+        toast('No fue posible encontrar al apoderado seleccionado');
+        return;
+    }
     const m = document.getElementById('modal');
     document.getElementById('modalContent').innerHTML = `
         <div class="p-6 border-b border-gray-100 flex justify-between items-center">
             <h3 class="font-bold text-gray-900 text-lg">Editar Apoderado</h3>
             <button onclick="closeModal()" class="text-gray-400 text-xl hover:text-gray-600">&times;</button>
         </div>
-        <form onsubmit="saveEditedApoderado(event, '${identificador}')" class="p-6 space-y-4">
+        <form onsubmit="saveEditedApoderado(event, ${idApoderado})" class="p-6 space-y-4">
             <div>
                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre Completo</label>
-                <input type="text" id="editApoNombre" required value="${apoderado.nombre}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
+                <input type="text" id="editApoNombre" required value="${escapeHtml(apoderado.nombre)}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">RUT</label>
+                <input type="text" id="editApoRut" required value="${escapeHtml(apoderado.rut || '')}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
             </div>
             <div>
                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Correo Electrónico (Usuario de Acceso)</label>
-                <input type="email" id="editApoCorreo" required value="${apoderado.identificador}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
+                <input type="email" id="editApoCorreo" required value="${escapeHtml(apoderado.identificador)}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
             </div>
             <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Contraseña de Ingreso</label>
-                <input type="text" id="editApoContrasena" required value="${apoderado.contrasena}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
-                <p class="text-xs text-gray-400 mt-1">Con esta clave y el correo, el apoderado ingresará al portal.</p>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nueva contraseña</label>
+                <input type="password" id="editApoContrasena" autocomplete="new-password" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none"/>
+                <p class="text-xs text-gray-400 mt-1">Déjala vacía para conservar la contraseña actual.</p>
             </div>
             <div>
                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Pupilo a Cargo</label>
                 <select id="editApoPupilo" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 outline-none">
-                    ${MOCK_DB.estudiantes.map(e => {
+                    ${estudiantes.map(e => {
                         const selected = (e.idEstudiante === apoderado.pupiloId) ? 'selected' : '';
-                        return `<option value="${e.idEstudiante}" ${selected}>${e.nombre} - ${e.nombreCurso}</option>`;
+                        return `<option value="${e.idEstudiante}" ${selected}>${escapeHtml(e.nombre)} - ${escapeHtml((e.nombresCursos || [e.nombreCurso]).join(', '))}</option>`;
                     }).join('')}
                 </select>
             </div>
@@ -3248,25 +3196,21 @@ async function openEditApoderadoModal(identificador) {
     m.classList.remove('hidden');
 }
 
-async function saveEditedApoderado(e, identificadorOriginal) {
+async function saveEditedApoderado(e, idApoderado) {
     e.preventDefault();
-    const nuevoCorreo = document.getElementById('editApoCorreo').value.trim();
-    const nuevaContrasena = document.getElementById('editApoContrasena').value.trim();
-    
-    // Validar que el nuevo correo no exista (si es diferente al original)
-    if (nuevoCorreo !== identificadorOriginal && MOCK_DB.users.find(u => u.identificador === nuevoCorreo)) {
-        toast('❌ Ya existe un usuario con ese correo');
-        return;
+    try {
+        await AdminApi.editarApoderado(idApoderado, {
+            rut: document.getElementById('editApoRut').value.trim(),
+            nombre: document.getElementById('editApoNombre').value.trim(),
+            correo: document.getElementById('editApoCorreo').value.trim(),
+            contrasena: document.getElementById('editApoContrasena').value,
+            pupiloId: Number(document.getElementById('editApoPupilo').value)
+        });
+        closeModal();
+        toast('✅ Apoderado actualizado');
+        await renderAdminApoderados();
+    } catch (error) {
+        toast(error.message || 'No fue posible actualizar al apoderado');
     }
-    
-    await AdminApi.editarApoderado(identificadorOriginal, {
-        nombre: document.getElementById('editApoNombre').value,
-        identificador: nuevoCorreo,
-        contrasena: nuevaContrasena,
-        pupiloId: parseInt(document.getElementById('editApoPupilo').value)
-    });
-    closeModal();
-    toast('✅ Apoderado actualizado');
-    await renderAdminApoderados();
 }
 

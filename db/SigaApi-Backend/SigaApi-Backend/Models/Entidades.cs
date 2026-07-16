@@ -62,6 +62,7 @@ public class Curso
 
     public List<DocenteCurso> DocenteCursos { get; set; } = [];
     public List<Estudiante> Estudiantes { get; set; } = [];
+    public List<EstudianteCurso> EstudianteCursos { get; set; } = [];
 
     // Propiedad calculada, no mapeada a columna: replica el "nombreCurso" que espera el frontend
     public string NombreCurso => $"{Asignatura} {Nivel}{Paralelo}";
@@ -88,12 +89,24 @@ public class Estudiante
 
     public Curso? Curso { get; set; }
     public Apoderado? Apoderado { get; set; }
+    public List<EstudianteCurso> EstudianteCursos { get; set; } = [];
+}
+
+public class EstudianteCurso
+{
+    public int IdEstudianteCurso { get; set; }
+    public int IdEstudiante { get; set; }
+    public int IdCurso { get; set; }
+    public DateTime FechaAsignacion { get; set; } = DateTime.UtcNow;
+    public Estudiante? Estudiante { get; set; }
+    public Curso? Curso { get; set; }
 }
 
 public class Asistencia
 {
     public int IdAsistencia { get; set; }
     public int IdEstudiante { get; set; }
+    public int IdCurso { get; set; }
     public DateOnly Fecha { get; set; }
     public string Estado { get; set; } = "";
     public string? Observacion { get; set; }

@@ -122,6 +122,25 @@ CREATE TABLE Estudiante (
 );
 GO
 
+-- Matricula academica N:M. idCurso en Estudiante se conserva como curso
+-- principal por compatibilidad, mientras esta tabla permite que un alumno
+-- participe en varias asignaturas/cursos sin ser removido de los anteriores.
+CREATE TABLE EstudianteCurso (
+    idEstudianteCurso INT IDENTITY(1,1) PRIMARY KEY,
+    idEstudiante      INT NOT NULL,
+    idCurso           INT NOT NULL,
+    fechaAsignacion   DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+    CONSTRAINT UQ_EstudianteCurso UNIQUE (idEstudiante, idCurso),
+    CONSTRAINT FK_EstudianteCurso_Estudiante FOREIGN KEY (idEstudiante)
+        REFERENCES Estudiante(idEstudiante) ON DELETE CASCADE,
+    CONSTRAINT FK_EstudianteCurso_Curso FOREIGN KEY (idCurso)
+        REFERENCES Curso(idCurso) ON DELETE CASCADE
+);
+GO
+SELECT
+    @@SERVERNAME AS servidor,
+    DB_NAME() AS baseDatos;
+
 /* =====================================================================
    4. ASISTENCIA
    ===================================================================== */
@@ -129,13 +148,16 @@ GO
 CREATE TABLE Asistencia (
     idAsistencia    INT IDENTITY(1,1) PRIMARY KEY,
     idEstudiante    INT             NOT NULL,
+    idCurso         INT             NOT NULL,
     fecha           DATE            NOT NULL,
     estado          VARCHAR(12)     NOT NULL,
     observacion     NVARCHAR(300)   NULL,
-    CONSTRAINT UQ_Asistencia_EstFecha UNIQUE (idEstudiante, fecha),
+    CONSTRAINT UQ_Asistencia_EstCursoFecha UNIQUE (idEstudiante, idCurso, fecha),
     CONSTRAINT CK_Asistencia_Estado CHECK (estado IN ('PRESENTE','AUSENTE','TARDANZA','JUSTIFICADO')),
     CONSTRAINT FK_Asistencia_Estudiante FOREIGN KEY (idEstudiante)
-        REFERENCES Estudiante(idEstudiante) ON DELETE CASCADE
+        REFERENCES Estudiante(idEstudiante) ON DELETE CASCADE,
+    CONSTRAINT FK_Asistencia_Curso FOREIGN KEY (idCurso)
+        REFERENCES Curso(idCurso)
 );
 GO
 
@@ -284,11 +306,14 @@ VALUES
 ('14.567.890-1', 'Valentina Diaz', 'vale.d@edu.cl', 2, 3),
 ('15.678.901-2', 'Antonio Caseres', 'andy.c@edu.cl', 3, 4);
 
-INSERT INTO Asistencia (idEstudiante, fecha, estado, observacion)
+INSERT INTO EstudianteCurso (idEstudiante, idCurso)
+SELECT idEstudiante, idCurso FROM Estudiante;
+
+INSERT INTO Asistencia (idEstudiante, idCurso, fecha, estado, observacion)
 VALUES
-(1, '2024-05-20', 'PRESENTE', NULL),
-(2, '2024-05-20', 'TARDANZA', 'Llego 10 min tarde'),
-(3, '2024-05-19', 'AUSENTE', 'Sin justificar');
+(1, 1, '2024-05-20', 'PRESENTE', NULL),
+(2, 1, '2024-05-20', 'TARDANZA', 'Llego 10 min tarde'),
+(3, 2, '2024-05-19', 'AUSENTE', 'Sin justificar');
 
 INSERT INTO Calificacion (idEstudiante, idCurso, tipoEvaluacion, descripcion, nota, ponderacion, fechaRegistro, fechaNota)
 VALUES
@@ -311,4 +336,3 @@ VALUES
 (2, 'Inasistencia', 'AMARILLO', '2024-05-20');
 
 GO
-
